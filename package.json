@@ -1,0 +1,42 @@
+{
+  "name": "miniprogrampatch",
+  "version": "1.0.0",
+  "description": "The patch provides computed and watch features for miniprogram.",
+  "main": "dist/miniprogrampatch.js",
+  "scripts": {
+    "build": "gulp",
+    "release": "gulp release",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "files": [
+    "dist/*.js"
+  ],
+  "keywords": [
+    "miniprogram",
+    "weixin",
+    "wxxcx",
+    "xcx",
+    "miniprogrampatch"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/hendiko/miniprogrampatch.git"
+  },
+  "author": "Xavier Yin",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/hendiko/miniprogrampatch/issues"
+  },
+  "homepage": "https://github.com/hendiko/miniprogrampatch#readme",
+  "devDependencies": {
+    "babel-core": "^6.26.3",
+    "babel-loader": "^7.1.5",
+    "babel-plugin-module-resolver": "^3.1.1",
+    "babel-preset-es2015": "^6.24.1",
+    "babel-register": "^6.26.0",
+    "gulp": "^4.0.0",
+    "uglifyjs-webpack-plugin": "^1.2.7",
+    "webpack": "^4.15.1",
+    "wrapper-webpack-plugin": "^2.0.0"
+  }
+}
