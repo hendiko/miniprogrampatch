@@ -146,9 +146,13 @@ Page({
 });
 ```
 
+`computed` 中的 `key:value`，如果 `value` 为函数，则表示该属性没有依赖其他属性，只在初始化时计算一次。如果 `value` 为对象，且在 `require` 字段中声明了依赖属性名称，则在相应的依赖属性发生变化后，该计算属性值会被重新计算。
+
 ## 方法
 
-### `$setData` *别名：`updateData`*
+### `$setData` 
+
+*别名：`updateData`*
 
 在使用 patchPage 或 patchComponent 增强后的 Page 或 Component 实例拥有一个名为 `$setData` 的方法，用来设置 data 同时触发 computed 属性更新以及 watch 监听检查。
 
