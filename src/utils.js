@@ -2,7 +2,7 @@
  * @Author: laixi 
  * @Date: 2018-10-20 13:17:17 
  * @Last Modified by: laixi
- * @Last Modified time: 2018-10-21 22:04:24
+ * @Last Modified time: 2018-10-23 09:13:14
  */
 
 export const isObject = obj => obj !== null && 'object' === typeof obj;
@@ -52,6 +52,7 @@ export const pathToArray = path => parsePath(path).map(item => item.name);
 // 调用场景中会保证 obj 为 object，path 为 string，
 // 因此本函数不再检查数据类型。
 export function result(obj, path) {
+  if (!obj) return { key: false };
   if (obj.hasOwnProperty(path)) {
     return { key: true, value: obj[path], path: [path] };
   } else {
@@ -106,4 +107,12 @@ export function isUpstream(parent, child, strict) {
     if (parent[i] !== child[i]) return false;
   }
   return true;
+}
+
+// 有交集
+export function hasIntersection(parent, child) {
+  for (let i in parent) {
+    if (parent[i] === child[i]) return true;
+  }
+  return false;
 }
