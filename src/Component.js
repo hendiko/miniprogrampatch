@@ -2,7 +2,7 @@
  * @Author: laixi 
  * @Date: 2018-10-21 21:49:26 
  * @Last Modified by: laixi
- * @Last Modified time: 2018-10-23 08:39:10
+ * @Last Modified time: 2018-10-23 14:50:45
  */
 import { initializeComputed, evaluateComputed } from './computed';
 import setDataApi from './setDataApi';
@@ -13,7 +13,7 @@ import checkWatchers, { initializeWatchers } from './watch'
 function initializeProperties(props) {
   for (let name in props) {
     let prop = props[name];
-    if (isFunction(props)) prop = props[name] = { type: prop };
+    if (isFunction(prop) || prop === null) prop = props[name] = { type: prop };
 
     let { observer } = prop;
 

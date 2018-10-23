@@ -4,6 +4,7 @@
 <view class="intro">countByHundred: {{countByHundred}}</view>
 <view class="intro">total: {{total}}</view>
 <view class="intro">x.y.z: {{x && x.y && x.y.z}}</view>
+<title total="{{total}}"></title>
 <view class="title">total change logs:</view>
 <view class="intro {{item === thirdLog ? 'red' : ''}}" wx:for="{{logs}}" wx:key="{{index}}">
     {{index+1}}. {{item}}
