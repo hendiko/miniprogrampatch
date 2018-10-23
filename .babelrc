@@ -2,5 +2,8 @@
   "presets": [
     "es2015"
   ],
-  "plugins": []
+  "plugins": [
+    "transform-es2015-spread",
+    "transform-object-rest-spread"
+  ]
 }

@@ -2,9 +2,9 @@
  * @Author: laixi 
  * @Date: 2018-10-21 21:49:26 
  * @Last Modified by: laixi
- * @Last Modified time: 2018-10-22 13:15:25
+ * @Last Modified time: 2018-10-23 08:39:10
  */
-import { initializeComputed, evaluteComputed } from './computed';
+import { initializeComputed, evaluateComputed } from './computed';
 import setDataApi from './setDataApi';
 import { isFunction } from './utils';
 import checkWatchers, { initializeWatchers } from './watch'
@@ -18,7 +18,7 @@ function initializeProperties(props) {
     let { observer } = prop;
 
     prop.observer = function (newVal, oldVal, changedPath) {
-      let computed = evaluteComputed(this, { [name]: newVal });
+      let computed = evaluateComputed(this, { [name]: newVal });
       if (Object.keys(computed).length) {
         this.$setData(computed);
       }
@@ -30,10 +30,11 @@ function initializeProperties(props) {
 }
 
 
-export function patchComponent(Component) {
+export function patchComponent(Component, options) {
+  if (Component.__patchComponent) return Component;
   let isSetDataReadOnly = false;
   let { debug } = options || {};
-  return function (obj) {
+  let constructor = function (obj) {
     if (!obj) obj = {};
     obj.properties = initializeProperties(obj.properties || {});
     let { attached, watch } = obj.lifetimes || obj;
@@ -45,7 +46,7 @@ export function patchComponent(Component) {
         return setDataApi(data, cb, { ctx: this });
       }
       this.__computed = initializeComputed(obj.computed || {});
-      let computedResult = evaluteComputed(this, null, { initial: true });
+      let computedResult = evaluateComputed(this, null, { initial: true });
       this.__setData(computedResult);
       this.__watch = initializeWatchers(this, watch || {});
       try {
@@ -71,4 +72,6 @@ export function patchComponent(Component) {
     return Component(obj);
   }
 
+  constructor.__patchComponent = true;
+  return constructor;
 }

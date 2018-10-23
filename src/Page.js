@@ -2,17 +2,19 @@
  * @Author: laixi 
  * @Date: 2018-10-21 21:27:48 
  * @Last Modified by: laixi
- * @Last Modified time: 2018-10-22 00:30:52
+ * @Last Modified time: 2018-10-23 08:39:29
  */
-import { initializeComputed, evaluteComputed } from './computed';
+import { initializeComputed, evaluateComputed } from './computed';
 import setDataApi from './setDataApi';
 import { isFunction } from './utils';
 import { initializeWatchers } from './watch'
 
 export function patchPage(Page, options) {
+  if (Page.__patchPage) return Page;
   let isSetDataReadOnly = false;
   let { debug } = options || {};
-  return function (ob) {
+
+  let constructor = function (obj) {
     if (!obj) obj = {};
 
     obj.__computed = initializeComputed(obj.computed || {});
@@ -23,7 +25,7 @@ export function patchPage(Page, options) {
       this.$setData = this.updateData = function (data, cb) {
         return setDataApi(data, cb, { ctx: this });
       }
-      let computedResult = evaluteComputed(this, null, { initial: true });
+      let computedResult = evaluateComputed(this, null, { initial: true });
       this.__setData(computedResult);
       this.__watch = initializeWatchers(this, watch || {});
       try {
@@ -42,4 +44,7 @@ export function patchPage(Page, options) {
 
     return Page(obj);
   }
+
+  constructor.__patchPage = true;
+  return constructor;
 }
