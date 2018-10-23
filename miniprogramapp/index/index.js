@@ -1,9 +1,7 @@
 const app = getApp()
 
-const { patchPage } = require('../miniprogrampatch')
-
 // 局部增强
-patchPage(Page)({
+Page({
 
   watch: {
 

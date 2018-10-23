@@ -2,7 +2,7 @@
  * @Author: laixi 
  * @Date: 2018-10-20 20:50:50 
  * @Last Modified by: laixi
- * @Last Modified time: 2018-10-22 18:37:09
+ * @Last Modified time: 2018-10-24 00:52:00
  */
 
 
@@ -46,7 +46,7 @@ export function evaluateComputed(ctx, changed, options) {
   let computed = ctx.__computed;
 
   let changedData;
-  if (computed.length) {
+  if (computed && computed.length) {
     if (initial) {
       for (let i in computed) {
         let { fn, require: r, name } = computed[i];
