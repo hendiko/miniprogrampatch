@@ -2,7 +2,7 @@
  * @Author: laixi 
  * @Date: 2018-10-20 20:50:50 
  * @Last Modified by: laixi
- * @Last Modified time: 2018-10-21 22:41:50
+ * @Last Modified time: 2018-10-22 18:37:09
  */
 
 
@@ -40,7 +40,7 @@ export function initializeComputed(computed) {
   return data;
 }
 
-export function evaluteComputed(ctx, changed, options) {
+export function evaluateComputed(ctx, changed, options) {
   let { initial } = options || {};
   let computedResult = {};
   let computed = ctx.__computed;
@@ -51,7 +51,7 @@ export function evaluteComputed(ctx, changed, options) {
       for (let i in computed) {
         let { fn, require: r, name } = computed[i];
         changedData = r.reduce((memo, item) => {
-          let { key, value } = result(ctx.__data, item);
+          let { key, value } = result(ctx.data, item);
           memo[item] = key ? value : result(computedResult, item).value;
           return memo;
         }, {});
@@ -67,18 +67,19 @@ export function evaluteComputed(ctx, changed, options) {
           if (r.length) {
             let needUpdate = false;
             let requiredName, requirePath;
-            for (let m in req) {
-              requiredName = req[m];
+            for (let m in r) {
+              requiredName = r[m];
               requirePath = pathCache[requiredName] || (pathCache[requiredName] = pathToArray(requiredName));
               if (~changedPaths.findIndex(path => isUpstream(requirePath, path))) {
+                changedPaths.push(pathCache[name] || (pathCache[name] = pathToArray(name)));
                 needUpdate = true;
                 break;
               }
             }
             if (needUpdate) {
               changedData = r.reduce((memo, item) => {
-                let { key, value } = result(ctx.__data, item);
-                memo[item] = key ? value : result(computedResult, item).value;
+                let { key, value } = result(computedResult, item);
+                memo[item] = key ? value : result(ctx.__data, item).value;
                 return memo;
               }, {});
               computedResult[name] = fn.call(ctx, changedData);

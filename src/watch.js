@@ -2,9 +2,9 @@
  * @Author: laixi 
  * @Date: 2018-10-21 21:50:40 
  * @Last Modified by: laixi
- * @Last Modified time: 2018-10-22 13:06:59
+ * @Last Modified time: 2018-10-23 09:11:36
  */
-import { isUpstream, pathToArray, result, isFunction } from './utils'
+import { hasIntersection, pathToArray, result, isFunction } from './utils'
 
 export function initializeWatchers(ctx, watch) {
   let watchers = {};
@@ -12,7 +12,7 @@ export function initializeWatchers(ctx, watch) {
   for (let k in watch) {
     cb = watch[k];
     if (isFunction(cb)) {
-      watchers[k] = { cb, value: result(ctx.data, k), path: pathToArray(k) }
+      watchers[k] = { cb, value: result(ctx.data, k).value, path: pathToArray(k) }
     }
   }
   return watchers;
@@ -30,10 +30,12 @@ export default function checkWatchers(ctx, changed) {
       watcher = watchers[k];
       let { cb, value, path } = watcher;
       for (let name in changed) {
-        if (isUpstream(path, pathCache[name] || (pathCache[name] = pathToArray(name)))) {
-          let newVal = result(ctx.data, k);
-          watcher.value = newVal;
-          setTimeout(() => cb.call(ctx, newVal, value));
+        if (hasIntersection(path, pathCache[name] || (pathCache[name] = pathToArray(name)))) {
+          let newVal = result(ctx.data, k).value;
+          if (newVal !== value) {
+            watcher.value = newVal;
+            setTimeout(() => cb.call(ctx, newVal, value))
+          };
         }
       }
     }
