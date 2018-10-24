@@ -4,7 +4,7 @@
 
 # 小程序示例片段
 
-示例代码片段：[wechatide://minicode/IN5liom47P3B](wechatide://minicode/IN5liom47P3B)
+示例代码片段：[wechatide://minicode/wlMblomz793c](wechatide://minicode/wlMblomz793c)
 
 > 示例代码目录：`./miniprogramapp`
 
@@ -20,7 +20,7 @@ npm install --save miniprogrampatch
 
 # 用法
 
-> 以下示例假定 miniprogrampatch.js 文件放置于项目根目录，示例代码参见[miniprogramapp](wechatide://minicode/IN5liom47P3B)。
+> 以下示例假定 miniprogrampatch.js 文件放置于项目根目录，示例代码参见[miniprogramapp](wechatide://minicode/wlMblomz793c)。
 
 ## 全局补丁
 
