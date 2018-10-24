@@ -2,7 +2,7 @@
  * @Author: laixi 
  * @Date: 2018-10-20 20:50:50 
  * @Last Modified by: laixi
- * @Last Modified time: 2018-10-24 00:52:00
+ * @Last Modified time: 2018-10-24 11:18:13
  */
 
 
@@ -79,7 +79,9 @@ export function evaluateComputed(ctx, changed, options) {
             if (needUpdate) {
               changedData = r.reduce((memo, item) => {
                 let { key, value } = result(computedResult, item);
-                memo[item] = key ? value : result(ctx.__data, item).value;
+                // 当 Component 的 prop 发生变化时，绕开了 $setData 方法触发数据更新
+                // 此时的 ctx.__data 为 undefined 或者 null，需要使用 ctx.data 来推算新的 computed 结果
+                memo[item] = key ? value : result(ctx.__data || ctx.data, item).value;
                 return memo;
               }, {});
               computedResult[name] = fn.call(ctx, changedData);
