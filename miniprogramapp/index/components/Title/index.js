@@ -3,7 +3,7 @@ Component({
 
   watch: {
     total(value, old) {
-      console.log('title: ', value, old);
+      console.log('title: ', value, old, this, this.attached);
     }
   },
 

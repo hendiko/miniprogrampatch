@@ -2,7 +2,7 @@
  * @Author: laixi 
  * @Date: 2018-10-21 21:49:26 
  * @Last Modified by: laixi
- * @Last Modified time: 2018-10-25 23:10:33
+ * @Last Modified time: 2018-10-26 18:47:11
  */
 import { initializeComputed, evaluateComputed } from './computed';
 import setDataApi from './setDataApi';
@@ -40,35 +40,43 @@ export function patchComponent(Component, options) {
     obj.properties = initializeProperties(obj.properties || {});
     let { attached, created, watch } = obj.lifetimes || obj;
 
+    let beforeCreated = true;
     let _created = function () {
-      // 小程序在初始化 prop 时，如果初始参数和定义的缺省值不同，会触发一次 observer
-      // 但此时 $setData 还未挂载，因此在 created 中先做一个 setData 快捷调用方式
-      // 此处不能 this.$setData = this.setData，因为此时的 this.setData 也不是 created 之后的 setData
-      // 不在此时使用 setDataApi 可以避免触发 watcher 检查
-      this.$setData = function () {
-        return this.setData.call(this, arguments);
+      if (beforeCreated) {
+        beforeCreated = false;
+        // 小程序在初始化 prop 时，如果初始参数和定义的缺省值不同，会触发一次 observer
+        // 但此时 $setData 还未挂载，因此在 created 中先做一个 setData 快捷调用方式
+        // 此处不能 this.$setData = this.setData，因为此时的 this.setData 也不是 created 之后的 setData
+        // 不在此时使用 setDataApi 可以避免触发 watcher 检查
+        this.$setData = function () {
+          return this.setData.call(this, arguments);
+        }
       }
       if (isFunction(created)) created.apply(this, arguments);
     };
 
+    let beforeAttached = true;
     let _attached = function () {
-      this.__setData = this.setData;
-      this.$setData = this.updateData = function (data, cb) {
-        return setDataApi(data, cb, { ctx: this });
-      }
-      this.__computed = initializeComputed(obj.computed || {});
-      let computedResult = evaluateComputed(this, null, { initial: true });
-      this.__setData(computedResult);
-      this.__watch = initializeWatchers(this, watch || {});
-      try {
-        if (!isSetDataReadOnly) {
-          this.setData = this.$setData;
+      if (beforeAttached) {
+        beforeAttached = false;
+        this.__setData = this.setData;
+        this.$setData = this.updateData = function (data, cb) {
+          return setDataApi(data, cb, { ctx: this });
         }
-      } catch (e) {
-        isSetDataReadOnly = true;
-        if (debug) {
-          console.log(e);
-          console.log('using this.$setData instead of this.setData to support watch and computed features.')
+        this.__computed = initializeComputed(obj.computed || {});
+        let computedResult = evaluateComputed(this, null, { initial: true });
+        this.__setData(computedResult);
+        this.__watch = initializeWatchers(this, watch || {});
+        try {
+          if (!isSetDataReadOnly) {
+            this.setData = this.$setData;
+          }
+        } catch (e) {
+          isSetDataReadOnly = true;
+          if (debug) {
+            console.log(e);
+            console.log('using this.$setData instead of this.setData to support watch and computed features.')
+          }
         }
       }
       if (isFunction(attached)) attached.apply(this, arguments);

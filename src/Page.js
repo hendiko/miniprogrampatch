@@ -2,7 +2,7 @@
  * @Author: laixi 
  * @Date: 2018-10-21 21:27:48 
  * @Last Modified by: laixi
- * @Last Modified time: 2018-10-25 23:06:25
+ * @Last Modified time: 2018-10-26 18:50:32
  */
 import { initializeComputed, evaluateComputed } from './computed';
 import setDataApi from './setDataApi';
@@ -19,23 +19,27 @@ export function patchPage(Page, options) {
     obj.__computed = initializeComputed(obj.computed || {});
 
     let { onLoad, watch } = obj;
+    let unpatched = true;  // in case of multiple calls of onLoad method.
     obj.onLoad = function (queries) {
-      this.__setData = this.setData;
-      this.$setData = this.updateData = function (data, cb) {
-        return setDataApi(data, cb, { ctx: this });
-      }
-      let computedResult = evaluateComputed(this, null, { initial: true });
-      this.__setData(computedResult);
-      this.__watch = initializeWatchers(this, watch || {});
-      try {
-        if (!isSetDataReadOnly) {
-          this.setData = this.$setData;
+      if (unpatched) {
+        unpatched = false;
+        this.__setData = this.setData;
+        this.$setData = this.updateData = function (data, cb) {
+          return setDataApi(data, cb, { ctx: this });
         }
-      } catch (e) {
-        isSetDataReadOnly = true;
-        if (debug) {
-          console.log(e);
-          console.log('using this.$setData instead of this.setData to support watch and computed features.')
+        let computedResult = evaluateComputed(this, null, { initial: true });
+        this.__setData(computedResult);
+        this.__watch = initializeWatchers(this, watch || {});
+        try {
+          if (!isSetDataReadOnly) {
+            this.setData = this.$setData;
+          }
+        } catch (e) {
+          isSetDataReadOnly = true;
+          if (debug) {
+            console.log(e);
+            console.log('using this.$setData instead of this.setData to support watch and computed features.')
+          }
         }
       }
       if (isFunction(onLoad)) onLoad.call(this, queries);
