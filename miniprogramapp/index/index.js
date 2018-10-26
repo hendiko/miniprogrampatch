@@ -96,6 +96,7 @@ Page({
 
   /** 每秒钟 count 属性加 1 */
   start() {
+    this.stop();
     this.timer = setInterval(() => {
       let { count } = this.data;
       this.$setData({ count: count + 1 })
