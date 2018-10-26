@@ -2,7 +2,7 @@
  * @Author: laixi 
  * @Date: 2018-10-21 21:27:48 
  * @Last Modified by: laixi
- * @Last Modified time: 2018-10-23 08:39:29
+ * @Last Modified time: 2018-10-25 23:06:25
  */
 import { initializeComputed, evaluateComputed } from './computed';
 import setDataApi from './setDataApi';
@@ -15,8 +15,7 @@ export function patchPage(Page, options) {
   let { debug } = options || {};
 
   let constructor = function (obj) {
-    if (!obj) obj = {};
-
+    obj = Object.assign({}, obj);
     obj.__computed = initializeComputed(obj.computed || {});
 
     let { onLoad, watch } = obj;
