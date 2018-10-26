@@ -2,7 +2,7 @@
  * @Author: laixi 
  * @Date: 2018-10-20 13:17:17 
  * @Last Modified by: laixi
- * @Last Modified time: 2018-10-23 09:13:14
+ * @Last Modified time: 2018-10-26 01:10:56
  */
 
 export const isObject = obj => obj !== null && 'object' === typeof obj;
@@ -71,7 +71,7 @@ export function result(obj, path) {
 }
 
 function _whichType(obj) {
-  return isObject(obj) ? 'object' : isArray(obj) ? 'array' : 'other';
+  return isArray(obj) ? 'array' : isObject(obj) ? 'object' : 'other';
 }
 
 export function setResult(obj, path, value) {

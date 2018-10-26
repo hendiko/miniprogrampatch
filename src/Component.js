@@ -2,7 +2,7 @@
  * @Author: laixi 
  * @Date: 2018-10-21 21:49:26 
  * @Last Modified by: laixi
- * @Last Modified time: 2018-10-24 11:31:07
+ * @Last Modified time: 2018-10-25 23:10:33
  */
 import { initializeComputed, evaluateComputed } from './computed';
 import setDataApi from './setDataApi';
@@ -34,8 +34,9 @@ export function patchComponent(Component, options) {
   if (Component.__patchComponent) return Component;
   let isSetDataReadOnly = false;
   let { debug } = options || {};
+
   let constructor = function (obj) {
-    if (!obj) obj = {};
+    obj = Object.assign({}, obj);
     obj.properties = initializeProperties(obj.properties || {});
     let { attached, created, watch } = obj.lifetimes || obj;
 
