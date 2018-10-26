@@ -2,7 +2,7 @@
  * @Author: laixi 
  * @Date: 2018-10-20 20:48:40 
  * @Last Modified by: laixi
- * @Last Modified time: 2018-10-22 17:55:01
+ * @Last Modified time: 2018-10-25 22:31:52
  */
 
 import { isObject, result, setResult, pathToArray } from './utils'
@@ -25,6 +25,7 @@ export default function setDataApi(obj, cb, options) {
   if (!changing) {
     ctx.__data = { ...ctx.data };
     ctx.__changed = {};
+    ctx.__unchanged = {};
   }
 
   let keys = Object.keys(obj);
@@ -36,6 +37,8 @@ export default function setDataApi(obj, cb, options) {
     newVal = obj[name];
     if (oldVal !== newVal) {
       changed[name] = newVal;
+    } else {
+      ctx.__unchanged[name] = newVal;
     }
   }
 
@@ -62,9 +65,13 @@ export default function setDataApi(obj, cb, options) {
     }
   }
 
+  let all = Object.assign(ctx.__unchanged, data);
+
   ctx.__changing = false;
   ctx.__data = null;
   ctx.__changed = null;
-  ctx.__setData(data, cb);
+  ctx.__unchanged = null;
+
+  ctx.__setData(all, cb)
   checkWatchers(ctx, data);
 }
