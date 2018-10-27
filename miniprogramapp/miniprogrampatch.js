@@ -1,4 +1,4 @@
-// miniprogrampatch v1.1.7 Sat Oct 27 2018  
+// miniprogrampatch v1.1.8 Sat Oct 27 2018  
 (function webpackUniversalModuleDefinition(root, factory) {
 	if(typeof exports === 'object' && typeof module === 'object')
 		module.exports = factory();
@@ -678,7 +678,7 @@ function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { de
  * @Author: laixi 
  * @Date: 2018-10-21 21:49:26 
  * @Last Modified by: laixi
- * @Last Modified time: 2018-10-27 19:45:10
+ * @Last Modified time: 2018-10-27 19:57:48
  */
 function initializeProperties(props) {
   var _loop = function _loop(name) {
@@ -737,11 +737,13 @@ function patchComponent(Component, options) {
     };
 
     var _attached = function _attached() {
-      if (!this.$setData) {
+      if (!(this.$setData && this.$setData.__attached)) {
         this.__setData = this.setData;
         this.$setData = this.updateData = function (data, cb) {
           return (0, _setDataApi2.default)(data, cb, { ctx: this });
         };
+        this.$setData.__attached = true;
+
         this.__computed = (0, _computed.initializeComputed)(obj.computed || {});
         var computedResult = (0, _computed.evaluateComputed)(this, null, { initial: true });
         this.__setData(computedResult);
