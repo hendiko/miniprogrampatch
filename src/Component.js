@@ -2,7 +2,7 @@
  * @Author: laixi 
  * @Date: 2018-10-21 21:49:26 
  * @Last Modified by: laixi
- * @Last Modified time: 2018-10-26 18:47:11
+ * @Last Modified time: 2018-10-27 19:45:10
  */
 import { initializeComputed, evaluateComputed } from './computed';
 import setDataApi from './setDataApi';
@@ -40,10 +40,8 @@ export function patchComponent(Component, options) {
     obj.properties = initializeProperties(obj.properties || {});
     let { attached, created, watch } = obj.lifetimes || obj;
 
-    let beforeCreated = true;
     let _created = function () {
-      if (beforeCreated) {
-        beforeCreated = false;
+      if (!this.$setData) {
         // 小程序在初始化 prop 时，如果初始参数和定义的缺省值不同，会触发一次 observer
         // 但此时 $setData 还未挂载，因此在 created 中先做一个 setData 快捷调用方式
         // 此处不能 this.$setData = this.setData，因为此时的 this.setData 也不是 created 之后的 setData
@@ -55,10 +53,8 @@ export function patchComponent(Component, options) {
       if (isFunction(created)) created.apply(this, arguments);
     };
 
-    let beforeAttached = true;
     let _attached = function () {
-      if (beforeAttached) {
-        beforeAttached = false;
+      if (!this.$setData) {
         this.__setData = this.setData;
         this.$setData = this.updateData = function (data, cb) {
           return setDataApi(data, cb, { ctx: this });
