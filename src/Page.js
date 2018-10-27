@@ -2,7 +2,7 @@
  * @Author: laixi 
  * @Date: 2018-10-21 21:27:48 
  * @Last Modified by: laixi
- * @Last Modified time: 2018-10-26 18:50:32
+ * @Last Modified time: 2018-10-27 19:46:03
  */
 import { initializeComputed, evaluateComputed } from './computed';
 import setDataApi from './setDataApi';
@@ -19,10 +19,8 @@ export function patchPage(Page, options) {
     obj.__computed = initializeComputed(obj.computed || {});
 
     let { onLoad, watch } = obj;
-    let unpatched = true;  // in case of multiple calls of onLoad method.
     obj.onLoad = function (queries) {
-      if (unpatched) {
-        unpatched = false;
+      if (!this.$setData) {
         this.__setData = this.setData;
         this.$setData = this.updateData = function (data, cb) {
           return setDataApi(data, cb, { ctx: this });
