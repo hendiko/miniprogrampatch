@@ -2,7 +2,7 @@
  * @Author: laixi 
  * @Date: 2018-10-21 21:49:26 
  * @Last Modified by: laixi
- * @Last Modified time: 2018-10-27 19:45:10
+ * @Last Modified time: 2018-10-27 19:57:48
  */
 import { initializeComputed, evaluateComputed } from './computed';
 import setDataApi from './setDataApi';
@@ -54,11 +54,13 @@ export function patchComponent(Component, options) {
     };
 
     let _attached = function () {
-      if (!this.$setData) {
+      if (!(this.$setData && this.$setData.__attached)) {
         this.__setData = this.setData;
         this.$setData = this.updateData = function (data, cb) {
           return setDataApi(data, cb, { ctx: this });
         }
+        this.$setData.__attached = true;
+
         this.__computed = initializeComputed(obj.computed || {});
         let computedResult = evaluateComputed(this, null, { initial: true });
         this.__setData(computedResult);
