@@ -1,13 +1,46 @@
 /*
  * @Author: laixi 
  * @Date: 2018-10-20 20:50:50 
- * @Last Modified by: laixi
- * @Last Modified time: 2018-10-24 11:18:13
+ * @Last Modified by: Xavier Yin
+ * @Last Modified time: 2018-11-28 09:10:38
  */
 
 
 import { isObject, isFunction, result, isUpstream, pathToArray } from './utils'
 
+
+// 如果 m 依赖于 n，则返回 true，否则 false
+function depends(m, n) {
+  return !!~m.require.indexOf(n.name);
+}
+
+// 计算依赖优先级
+function sortDeps(list) {
+  let tmp = [];
+  let item, broken, i, tmp2, ii, index;
+  while (list.length) {
+    item = list.pop();
+    broken = false;
+    for (i in tmp) {
+      if (depends(tmp[i], item)) {
+        tmp2 = tmp.splice(i, tmp.length - i, item);
+        for (ii in item.require) {
+          index = tmp2.findIndex(x => x.name === item.require[ii]);
+          if (index > -1) {
+            list.push(tmp2.splice(index, 1)[0]);
+          }
+        }
+        tmp = tmp.concat(tmp2);
+        broken = true;
+        break;
+      }
+    }
+    if (!broken) {
+      tmp.push(item);
+    }
+  }
+  return tmp;
+}
 
 /**
  * 初始化计算属性配置
@@ -27,15 +60,7 @@ export function initializeComputed(computed) {
     }
   }
   if (data.length > 1) {
-    data.sort((m, n) => {
-      if (~n.require.indexOf(m.name)) {
-        return -1;
-      } else if (~m.require.indexOf(n.name)) {
-        return 1;
-      } else {
-        return 0;
-      }
-    });
+    data = sortDeps(data);
   }
   return data;
 }

@@ -1,4 +1,4 @@
-// miniprogrampatch v1.1.8 Sat Oct 27 2018  
+// miniprogrampatch v1.1.9 Wed Nov 28 2018  
 (function webpackUniversalModuleDefinition(root, factory) {
 	if(typeof exports === 'object' && typeof module === 'object')
 		module.exports = factory();
@@ -204,6 +204,53 @@ exports.evaluateComputed = evaluateComputed;
 
 var _utils = __webpack_require__(3);
 
+// 如果 m 依赖于 n，则返回 true，否则 false
+function depends(m, n) {
+  return !!~m.require.indexOf(n.name);
+}
+
+// 计算依赖优先级
+/*
+ * @Author: laixi 
+ * @Date: 2018-10-20 20:50:50 
+ * @Last Modified by: Xavier Yin
+ * @Last Modified time: 2018-11-28 09:10:38
+ */
+
+function sortDeps(list) {
+  var tmp = [];
+  var item = void 0,
+      broken = void 0,
+      i = void 0,
+      tmp2 = void 0,
+      ii = void 0,
+      index = void 0;
+  while (list.length) {
+    item = list.pop();
+    broken = false;
+    for (i in tmp) {
+      if (depends(tmp[i], item)) {
+        tmp2 = tmp.splice(i, tmp.length - i, item);
+        for (ii in item.require) {
+          index = tmp2.findIndex(function (x) {
+            return x.name === item.require[ii];
+          });
+          if (index > -1) {
+            list.push(tmp2.splice(index, 1)[0]);
+          }
+        }
+        tmp = tmp.concat(tmp2);
+        broken = true;
+        break;
+      }
+    }
+    if (!broken) {
+      tmp.push(item);
+    }
+  }
+  return tmp;
+}
+
 /**
  * 初始化计算属性配置
  */
@@ -227,23 +274,10 @@ function initializeComputed(computed) {
     }
   }
   if (data.length > 1) {
-    data.sort(function (m, n) {
-      if (~n.require.indexOf(m.name)) {
-        return -1;
-      } else if (~m.require.indexOf(n.name)) {
-        return 1;
-      } else {
-        return 0;
-      }
-    });
+    data = sortDeps(data);
   }
   return data;
-} /*
-   * @Author: laixi 
-   * @Date: 2018-10-20 20:50:50 
-   * @Last Modified by: laixi
-   * @Last Modified time: 2018-10-24 11:18:13
-   */
+}
 
 function evaluateComputed(ctx, changed, options) {
   var _ref = options || {},
