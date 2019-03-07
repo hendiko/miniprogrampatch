@@ -1,4 +1,4 @@
-// miniprogrampatch v1.1.9 Wed Nov 28 2018  
+// miniprogrampatch v1.1.10 Thu Mar 07 2019  
 (function webpackUniversalModuleDefinition(root, factory) {
 	if(typeof exports === 'object' && typeof module === 'object')
 		module.exports = factory();
@@ -211,10 +211,10 @@ function depends(m, n) {
 
 // 计算依赖优先级
 /*
- * @Author: laixi 
- * @Date: 2018-10-20 20:50:50 
+ * @Author: laixi
+ * @Date: 2018-10-20 20:50:50
  * @Last Modified by: Xavier Yin
- * @Last Modified time: 2018-11-28 09:10:38
+ * @Last Modified time: 2019-03-01 09:53:15
  */
 
 function sortDeps(list) {
@@ -327,7 +327,7 @@ function evaluateComputed(ctx, changed, options) {
                 requiredName = r[m];
                 requirePath = pathCache[requiredName] || (pathCache[requiredName] = (0, _utils.pathToArray)(requiredName));
                 if (~changedPaths.findIndex(function (path) {
-                  return (0, _utils.isUpstream)(requirePath, path);
+                  return (0, _utils.hasIntersection)(requirePath, path);
                 })) {
                   changedPaths.push(pathCache[name] || (pathCache[name] = (0, _utils.pathToArray)(name)));
                   needUpdate = true;
@@ -370,33 +370,32 @@ var _typeof = typeof Symbol === "function" && typeof Symbol.iterator === "symbol
 
 exports.result = result;
 exports.setResult = setResult;
-exports.isUpstream = isUpstream;
 exports.hasIntersection = hasIntersection;
 /*
- * @Author: laixi 
- * @Date: 2018-10-20 13:17:17 
- * @Last Modified by: laixi
- * @Last Modified time: 2018-10-26 01:10:56
+ * @Author: laixi
+ * @Date: 2018-10-20 13:17:17
+ * @Last Modified by: Xavier Yin
+ * @Last Modified time: 2019-03-07 11:41:09
  */
 
 var isObject = exports.isObject = function isObject(obj) {
-  return obj !== null && 'object' === (typeof obj === 'undefined' ? 'undefined' : _typeof(obj));
+  return obj !== null && "object" === (typeof obj === "undefined" ? "undefined" : _typeof(obj));
 };
 var isFunction = exports.isFunction = function isFunction(obj) {
-  return 'function' === typeof obj;
+  return "function" === typeof obj;
 };
 var isString = exports.isString = function isString(obj) {
-  return 'string' === typeof obj;
+  return "string" === typeof obj;
 };
 var isArray = exports.isArray = function isArray(x) {
   return x && x.constructor === Array;
 };
 var trim = exports.trim = function trim(str) {
-  return str.replace(/(^\s+)|(\s+$)/g, '');
+  return str.replace(/(^\s+)|(\s+$)/g, "");
 };
 
 var trimDot = function trimDot(str) {
-  return str.replace(/^\.|\.$/g, '');
+  return str.replace(/^\.|\.$/g, "");
 };
 var startsWithSquare = function startsWithSquare(str) {
   return (/^\[/.test(str)
@@ -407,6 +406,11 @@ var startsWithDot = function startsWithDot(str) {
   );
 };
 
+/**
+ * 解析路径式的属性名称
+ * @param {string} path 属性名称（允许dot分隔）
+ * @param {*} names
+ */
 function parsePath(path) {
   var names = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : [];
 
@@ -417,19 +421,19 @@ function parsePath(path) {
   } else if (startsWithSquare(path)) {
     var name = /^\[(\d+)\]/.exec(path);
     if (name) {
-      names.push({ name: name[1], type: 'array' });
+      names.push({ name: name[1], type: "array" });
       if (name[0] === path) {
         return names;
       } else {
         return parsePath(path.slice(name[0].length), names);
       }
     } else {
-      throw Error('Only number 0-9 could inside []');
+      throw Error("Only number 0-9 could inside []");
     }
   } else {
     var _name = /^([^\[\.]+)/.exec(path);
     if (_name) {
-      names.push({ name: _name[1], type: 'object' });
+      names.push({ name: _name[1], type: "object" });
       if (_name[0] === path) {
         return names;
       } else {
@@ -469,7 +473,7 @@ function result(obj, path) {
 }
 
 function _whichType(obj) {
-  return isArray(obj) ? 'array' : isObject(obj) ? 'object' : 'other';
+  return isArray(obj) ? "array" : isObject(obj) ? "object" : "other";
 }
 
 function setResult(obj, path, value) {
@@ -477,7 +481,7 @@ function setResult(obj, path, value) {
   path = parsePath(path);
   var parent = void 0,
       lastName = void 0;
-  if (!path.length) throw Error('Path can not be empty');
+  if (!path.length) throw Error("Path can not be empty");
   for (var i in path) {
     var _path$i = path[i],
         name = _path$i.name,
@@ -485,12 +489,12 @@ function setResult(obj, path, value) {
 
 
     if (i == 0) {
-      if (type === 'array') {
-        throw Error('Path can not start with []');
+      if (type === "array") {
+        throw Error("Path can not start with []");
       }
     } else {
       if (_whichType(obj) !== type) {
-        obj = parent[lastName] = type === 'array' ? [] : {};
+        obj = parent[lastName] = type === "array" ? [] : {};
       }
     }
     parent = obj;
@@ -501,22 +505,9 @@ function setResult(obj, path, value) {
   return root;
 }
 
-// 判断是否是上游路径
-function isUpstream(parent, child, strict) {
-  if (parent.length > child.length) return false;
-  if (strict && parent.length === child.length) return false;
-  for (var i in parent) {
-    if (parent[i] !== child[i]) return false;
-  }
-  return true;
-}
-
-// 有交集
-function hasIntersection(parent, child) {
-  for (var i in parent) {
-    if (parent[i] === child[i]) return true;
-  }
-  return false;
+// 判断两个嵌套路径之间是否具有交集
+function hasIntersection(obj, target) {
+  return obj[0] === target[0];
 }
 
 /***/ }),
@@ -529,10 +520,10 @@ function hasIntersection(parent, child) {
 exports.__esModule = true;
 
 var _extends = Object.assign || function (target) { for (var i = 1; i < arguments.length; i++) { var source = arguments[i]; for (var key in source) { if (Object.prototype.hasOwnProperty.call(source, key)) { target[key] = source[key]; } } } return target; }; /*
-                                                                                                                                                                                                                                                                   * @Author: laixi 
-                                                                                                                                                                                                                                                                   * @Date: 2018-10-20 20:48:40 
-                                                                                                                                                                                                                                                                   * @Last Modified by: laixi
-                                                                                                                                                                                                                                                                   * @Last Modified time: 2018-10-25 22:31:52
+                                                                                                                                                                                                                                                                   * @Author: laixi
+                                                                                                                                                                                                                                                                   * @Date: 2018-10-20 20:48:40
+                                                                                                                                                                                                                                                                   * @Last Modified by: Xavier Yin
+                                                                                                                                                                                                                                                                   * @Last Modified time: 2019-02-28 17:26:19
                                                                                                                                                                                                                                                                    */
 
 exports.default = setDataApi;
@@ -639,15 +630,19 @@ function initializeWatchers(ctx, watch) {
   for (var k in watch) {
     cb = watch[k];
     if ((0, _utils.isFunction)(cb)) {
-      watchers[k] = { cb: cb, value: (0, _utils.result)(ctx.data, k).value, path: (0, _utils.pathToArray)(k) };
+      watchers[k] = {
+        cb: cb,
+        value: (0, _utils.result)(ctx.data, k).value,
+        path: (0, _utils.pathToArray)(k)
+      };
     }
   }
   return watchers;
 } /*
-   * @Author: laixi 
-   * @Date: 2018-10-21 21:50:40 
-   * @Last Modified by: laixi
-   * @Last Modified time: 2018-10-23 09:11:36
+   * @Author: laixi
+   * @Date: 2018-10-21 21:50:40
+   * @Last Modified by: Xavier Yin
+   * @Last Modified time: 2019-03-01 09:53:39
    */
 function checkWatchers(ctx, changed) {
   var watchers = ctx.__watch;
@@ -672,7 +667,7 @@ function checkWatchers(ctx, changed) {
               setTimeout(function () {
                 return cb.call(ctx, newVal, value);
               });
-            };
+            }
           })();
         }
       }

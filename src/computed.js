@@ -1,13 +1,17 @@
 /*
- * @Author: laixi 
- * @Date: 2018-10-20 20:50:50 
+ * @Author: laixi
+ * @Date: 2018-10-20 20:50:50
  * @Last Modified by: Xavier Yin
- * @Last Modified time: 2018-11-28 09:10:38
+ * @Last Modified time: 2019-03-01 09:53:15
  */
 
-
-import { isObject, isFunction, result, isUpstream, pathToArray } from './utils'
-
+import {
+  isObject,
+  isFunction,
+  result,
+  hasIntersection,
+  pathToArray
+} from "./utils";
 
 // 如果 m 依赖于 n，则返回 true，否则 false
 function depends(m, n) {
@@ -86,7 +90,9 @@ export function evaluateComputed(ctx, changed, options) {
       let changedKeys = Object.keys(changed);
       if (changedKeys.length) {
         let pathCache = {};
-        let changedPaths = changedKeys.map(item => pathCache[item] = pathToArray(item));
+        let changedPaths = changedKeys.map(
+          item => (pathCache[item] = pathToArray(item))
+        );
         for (let i in computed) {
           let { fn, require: r, name } = computed[i];
           if (r.length) {
@@ -94,9 +100,17 @@ export function evaluateComputed(ctx, changed, options) {
             let requiredName, requirePath;
             for (let m in r) {
               requiredName = r[m];
-              requirePath = pathCache[requiredName] || (pathCache[requiredName] = pathToArray(requiredName));
-              if (~changedPaths.findIndex(path => isUpstream(requirePath, path))) {
-                changedPaths.push(pathCache[name] || (pathCache[name] = pathToArray(name)));
+              requirePath =
+                pathCache[requiredName] ||
+                (pathCache[requiredName] = pathToArray(requiredName));
+              if (
+                ~changedPaths.findIndex(path =>
+                  hasIntersection(requirePath, path)
+                )
+              ) {
+                changedPaths.push(
+                  pathCache[name] || (pathCache[name] = pathToArray(name))
+                );
                 needUpdate = true;
                 break;
               }
@@ -106,7 +120,9 @@ export function evaluateComputed(ctx, changed, options) {
                 let { key, value } = result(computedResult, item);
                 // 当 Component 的 prop 发生变化时，绕开了 $setData 方法触发数据更新
                 // 此时的 ctx.__data 为 undefined 或者 null，需要使用 ctx.data 来推算新的 computed 结果
-                memo[item] = key ? value : result(ctx.__data || ctx.data, item).value;
+                memo[item] = key
+                  ? value
+                  : result(ctx.__data || ctx.data, item).value;
                 return memo;
               }, {});
               computedResult[name] = fn.call(ctx, changedData);

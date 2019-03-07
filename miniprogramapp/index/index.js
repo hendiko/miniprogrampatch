@@ -79,11 +79,22 @@ Page({
       fn({ total }) {
         return total;
       }
+    },
+
+    firstOne: {
+      require: ['res.list'],
+      fn({'res.list': list}) {
+        let first = (list || [])[0];
+        return first || null;
+      }
     }
   },
 
 
   data: {
+    res: {
+      list: []
+    },
     count: 10,
     logs: []   // total 属性的更新日志
   },

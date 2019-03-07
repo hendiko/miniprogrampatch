@@ -1,13 +1,13 @@
 /*
- * @Author: laixi 
- * @Date: 2018-10-20 20:48:40 
- * @Last Modified by: laixi
- * @Last Modified time: 2018-10-25 22:31:52
+ * @Author: laixi
+ * @Date: 2018-10-20 20:48:40
+ * @Last Modified by: Xavier Yin
+ * @Last Modified time: 2019-02-28 17:26:19
  */
 
-import { isObject, result, setResult, pathToArray } from './utils'
-import { evaluateComputed } from './computed';
-import checkWatchers from './watch'
+import { isObject, result, setResult } from "./utils";
+import { evaluateComputed } from "./computed";
+import checkWatchers from "./watch";
 
 function assignResult(obj, data) {
   for (let key in data) {
@@ -53,7 +53,6 @@ export default function setDataApi(obj, cb, options) {
   // save all computed data
   assignResult(ctx.__data, computedResult);
 
-
   if (changing) return ctx.__data;
 
   // 判断键值是否仍然有效（可能被覆写了）
@@ -72,6 +71,6 @@ export default function setDataApi(obj, cb, options) {
   ctx.__changed = null;
   ctx.__unchanged = null;
 
-  ctx.__setData(all, cb)
+  ctx.__setData(all, cb);
   checkWatchers(ctx, data);
 }
