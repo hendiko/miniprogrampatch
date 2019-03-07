@@ -27,7 +27,7 @@ npm install --save miniprogrampatch
 在 `app.js` 中：
 
 ```js
-const { patchPage, patchComponent } = require('./miniprogrampatch')
+const { patchPage, patchComponent } = require("./miniprogrampatch");
 
 Page = patchPage(Page);
 Component = patchComponent(Component);
@@ -40,28 +40,26 @@ App({});
 例如 `./index/index.js` 中直接定义 `watch` 和 `computed` 属性：
 
 ```js
-
 Page({
-    watch: {
-        total(value, old) {
-            // do something
-        }
-    },
-
-    computed: {
-        total: {
-            require: ['count', 'countByTen', 'countByHundred'],  // 显式指定依赖属性
-            fn({ count, countByTen, countByHundred }) {
-                return count + countByTen + countByHundred;
-            }
-        }
-    },
-
-    data: {
-        count: 1
+  watch: {
+    total(value, old) {
+      // do something
     }
-});
+  },
 
+  computed: {
+    total: {
+      require: ["count", "countByTen", "countByHundred"], // 显式指定依赖属性
+      fn({ count, countByTen, countByHundred }) {
+        return count + countByTen + countByHundred;
+      }
+    }
+  },
+
+  data: {
+    count: 1
+  }
+});
 ```
 
 ## 局部补丁
@@ -71,19 +69,19 @@ Page({
 例如在 `./index/index.js` 中：
 
 ```js
-const { patchPage } = require('../miniprogrampatch');
+const { patchPage } = require("../miniprogrampatch");
 
 patchPage(Page)({
-    watch: {
-        // add some watchers
-    },
+  watch: {
+    // add some watchers
+  },
 
-    computed: {
-        // add some computed props
-    },
+  computed: {
+    // add some computed props
+  }
 
-    // todo
-})
+  // todo
+});
 ```
 
 > 如果在 app.js 中打了全局补丁，则在页面或组件中不必再打局部补丁。
@@ -98,18 +96,18 @@ patchPage(Page)({
 
 ```js
 Page({
-    watch: {
-        // 嵌套路径监听
-        'x.y': function (value, old) {
-            console.log('x.y', value === old);  // x.y true
-        },
+  watch: {
+    // 嵌套路径监听
+    "x.y": function(value, old) {
+      console.log("x.y", value === old); // x.y true
+    },
 
-        // 监听属性
-        x(value, old) {
-            console.log('x', value === old); // x true
-        },
+    // 监听属性
+    x(value, old) {
+      console.log("x", value === old); // x true
     }
-})
+  }
+});
 ```
 
 ### `computed`
@@ -118,33 +116,32 @@ Page({
 
 ```js
 Page({
+  data: {
+    count: 10
+  },
 
-    data: {
-        count: 10
+  computed: {
+    /** 页面加载的时间戳（不依赖其他属性） */
+    timestamp() {
+      return Date.now();
     },
 
-    computed: {
-        /** 页面加载的时间戳（不依赖其他属性） */
-        timestamp() {
-            return Date.now();
-        },
+    /** count 乘以 10（依赖属性 count） */
+    countByTen: {
+      require: ["count"],
+      fn({ count }) {
+        return count * 10;
+      }
+    },
 
-        /** count 乘以 10（依赖属性 count） */
-        countByTen: {
-            require: ['count'],
-            fn({ count }) {
-                return count * 10
-            }
-        },
-
-        /** count 乘以 100（依赖另一个计算属性 countByTen）*/
-        countByHundred: {
-            require: ['countByTen'],
-            fn({ countByTen }) {
-                return countByTen * 10;
-            }
-        },
+    /** count 乘以 100（依赖另一个计算属性 countByTen）*/
+    countByHundred: {
+      require: ["countByTen"],
+      fn({ countByTen }) {
+        return countByTen * 10;
+      }
     }
+  }
 });
 ```
 
@@ -152,12 +149,14 @@ Page({
 
 ## 方法
 
-### `$setData` 
+### `$setData`
 
-*别名：`updateData`*
+_别名：`updateData`_
 
 在使用 patchPage 或 patchComponent 增强后的 Page 或 Component 实例拥有一个名为 `$setData` 的方法，用来设置 data 同时触发 computed 属性更新以及 watch 监听检查。
 
 在微信小程序基础库 v2.2.2 以下版本，Page 或 Component 的 `setData` 方法由于会被定义为只读属性，无法覆写，因此必须使用 `$setData` 来触发数据更新检查。
 
 在微信小程序基础库 v2.2.3 以上版本，Page 和 Component 的 `setData` 等效于 `$setData`，可以直接使用 `setData` 来触发数据更新。
+
+> PS: 微信小程序自 2.6.1 版本开始在 Component 中提供 observers 配置项用以监听 data 或 properties 数据变化。
