@@ -2,19 +2,23 @@
  * @Author: laixi
  * @Date: 2018-10-21 21:50:40
  * @Last Modified by: Xavier Yin
- * @Last Modified time: 2019-03-01 09:53:39
+ * @Last Modified time: 2019-04-29 18:17:44
  */
-import { hasIntersection, pathToArray, result, isFunction } from "./utils";
+import { hasIntersection, isFunction } from "./utils";
+import { getValueOfPath } from "./evalPath";
+import { pathToArray } from "./parsePath";
 
+/** 初始化属性观察者 */
 export function initializeWatchers(ctx, watch) {
   let watchers = {};
-  let cb;
-  for (let k in watch) {
+  let cb, k;
+  for (k in watch) {
     cb = watch[k];
+    // 在构造配置中，只有定义了观察响应函数，才算有效观察。
     if (isFunction(cb)) {
       watchers[k] = {
         cb,
-        value: result(ctx.data, k).value,
+        value: getValueOfPath(ctx.data, k).value, // 缓存被观察属性的旧值
         path: pathToArray(k)
       };
     }
@@ -22,6 +26,10 @@ export function initializeWatchers(ctx, watch) {
   return watchers;
 }
 
+/**
+ * @param {object} ctx Page/Component 实例
+ * @param {*} changed
+ */
 export default function checkWatchers(ctx, changed) {
   let watchers = ctx.__watch;
   let watchKeys = watchers ? Object.keys(watchers) : [];
@@ -39,7 +47,7 @@ export default function checkWatchers(ctx, changed) {
             pathCache[name] || (pathCache[name] = pathToArray(name))
           )
         ) {
-          let newVal = result(ctx.data, k).value;
+          let newVal = getValueOfPath(ctx.data, k).value;
           if (newVal !== value) {
             watcher.value = newVal;
             setTimeout(() => cb.call(ctx, newVal, value));

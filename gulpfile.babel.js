@@ -23,7 +23,7 @@ var webpackConfig = {
       new WrapperPlugin({
         header: `// ${pkg.name} v${
           pkg.version
-          } ${new Date().toDateString()}  \n`
+        } ${new Date().toDateString()}  \n`
       })
     ];
     if (!isDev) {
@@ -77,3 +77,8 @@ function webpackRunner(options) {
 
 gulp.task("release", () => webpackRunner({ release: true }));
 gulp.task("default", () => webpackRunner());
+gulp.task("sample", () => {
+  return gulp
+    .src("./build/miniprogrampatch.js")
+    .pipe(gulp.dest("miniprogramapp"));
+});
