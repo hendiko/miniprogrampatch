@@ -2,10 +2,12 @@
  * @Author: Xavier Yin
  * @Date: 2019-04-28 15:43:34
  * @Last Modified by: Xavier Yin
- * @Last Modified time: 2019-05-06 16:24:35
+ * @Last Modified time: 2019-05-07 14:39:22
  *
  * 解析小程序 data 以路径作为属性名
  */
+
+import { MiniprogrampatchError } from "./error";
 
 /** 解析路径异常 */
 function ParseError(type, pathstr) {
@@ -20,7 +22,7 @@ function ParseError(type, pathstr) {
     default:
       msg = "Unknown error occurred when parsing path";
   }
-  return new Error(`[miniprogrampatch] ${msg}: ${pathstr}`);
+  return new MiniprogrampatchError(`${msg}: ${pathstr}`);
 }
 
 /**
@@ -83,7 +85,7 @@ function preprocessPath(path) {
   let checkers = [check1, check2, check3, check4];
   for (let i = 0; i < checkers.length; i++) {
     if (!checkers[i](path)) {
-      throw new ParseError(i === 1 ? 1 : 0, path);
+      throw ParseError(i === 1 ? 1 : 0, path);
     }
   }
 
@@ -136,9 +138,9 @@ function parsePathApi(path) {
         let position = index.length + 2;
 
         index = index.replace(/\.|\[/g, "");
-        if (!index) throw new ParseError(0, path);
+        if (!index) throw ParseError(0, path);
         index *= 1;
-        if (isNaN(index)) throw new ParseError(0, path);
+        if (isNaN(index)) throw ParseError(0, path);
         sections.push({ type: 1, key: index });
 
         if (position < usingPath.length) {
@@ -147,7 +149,7 @@ function parsePathApi(path) {
           );
         }
       } else {
-        throw new ParseError(0, path);
+        throw ParseError(0, path);
       }
     } else {
       sections = parsePathWithoutLSB(usingPath);

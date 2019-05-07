@@ -4,6 +4,7 @@ import pkg from "./package.json";
 import path from "path";
 import WrapperPlugin from "wrapper-webpack-plugin";
 import UglifyJSPlugin from "uglifyjs-webpack-plugin";
+import Jasmine from "jasmine";
 
 // since webpack 4.0, webpack is built with UglifyJSPlugin if its mode is production.
 var webpackConfig = {
@@ -81,4 +82,21 @@ gulp.task("sample", () => {
   return gulp
     .src("./build/miniprogrampatch.js")
     .pipe(gulp.dest("miniprogramapp"));
+});
+
+gulp.task("unittest", () => {
+  let jasmine = new Jasmine();
+
+  jasmine.loadConfigFile("./spec/support/jasmine.json");
+  jasmine.execute();
+
+  return new Promise((resolve, reject) => {
+    jasmine.onComplete(success => {
+      if (success) {
+        resolve("Unit test passed");
+      } else {
+        reject("Unit test not passed");
+      }
+    });
+  });
 });

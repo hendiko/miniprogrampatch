@@ -1,4 +1,4 @@
-// miniprogrampatch v1.1.11 Tue Apr 30 2019  
+// miniprogrampatch v1.1.11 Tue May 07 2019  
 (function webpackUniversalModuleDefinition(root, factory) {
 	if(typeof exports === 'object' && typeof module === 'object')
 		module.exports = factory();
@@ -542,11 +542,12 @@ exports.__esModule = true;
 exports.default = parsePath;
 exports.isSameRootOfPath = isSameRootOfPath;
 exports.pathToArray = pathToArray;
+exports.formatPath = formatPath;
 /*
  * @Author: Xavier Yin
  * @Date: 2019-04-28 15:43:34
  * @Last Modified by: Xavier Yin
- * @Last Modified time: 2019-04-29 18:16:37
+ * @Last Modified time: 2019-05-06 16:24:35
  *
  * 解析小程序 data 以路径作为属性名
  */
@@ -700,7 +701,7 @@ function parsePathApi(path) {
         index = index[1];
         var position = index.length + 2;
 
-        index = index.replace(/\.|\[]/g, "");
+        index = index.replace(/\.|\[/g, "");
         if (!index) throw new ParseError(0, path);
         index *= 1;
         if (isNaN(index)) throw new ParseError(0, path);
@@ -769,6 +770,13 @@ function pathToArray(path) {
   return parsePath(path).map(function (section) {
     return section.key;
   });
+}
+
+/**
+ * 格式化路径，转换为标准的简洁路径
+ */
+function formatPath(path) {
+  return compactPath(composePath(parsePath(path)));
 }
 
 /***/ }),
