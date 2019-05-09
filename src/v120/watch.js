@@ -2,7 +2,7 @@
  * @Author: Xavier Yin
  * @Date: 2019-05-07 09:39:29
  * @Last Modified by: Xavier Yin
- * @Last Modified time: 2019-05-07 15:53:22
+ * @Last Modified time: 2019-05-08 15:11:02
  */
 
 import { getValueOfPath } from "./evalPath";
@@ -15,7 +15,7 @@ import { isObject, isFunction } from "./utils";
  * @param {object} watch watch 配置
  */
 function initializeWatchers(owner, watch) {
-  let watchers = (owner.__watchers = {});
+  let watchers = {};
   if (isObject(watch)) {
     let cb, name;
     for (name in watch) {
@@ -30,6 +30,7 @@ function initializeWatchers(owner, watch) {
       }
     }
   }
+  return watchers;
 }
 
 /**
@@ -47,10 +48,10 @@ function checkWatchers(owner, ...paths) {
     paths = Object.keys(watchers);
   }
 
-  let path, watcher, i;
+  let path, i;
   for (i = 0; i < paths.length; i++) {
     path = paths[i];
-    watcher = watchers[path];
+    let watcher = watchers[path];
     let { value: oldVal } = watcher;
     let { value } = getValueOfPath(owner.data, path);
     if (value !== oldVal) {

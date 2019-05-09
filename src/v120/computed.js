@@ -2,10 +2,15 @@
  * @Author: Xavier Yin
  * @Date: 2019-04-30 09:46:15
  * @Last Modified by: Xavier Yin
- * @Last Modified time: 2019-05-07 17:23:08
+ * @Last Modified time: 2019-05-09 11:20:45
  */
 
-import parsePath, { composePath, compactPath, formatPath } from "./parsePath";
+import parsePath, {
+  composePath,
+  compactPath,
+  formatPath,
+  isSameRootOfPath
+} from "./parsePath";
 import { getValueOfPath, setValueOfPath } from "./evalPath";
 import { isObject, isFunction } from "./utils";
 
@@ -42,12 +47,22 @@ class Observer {
     this.newValue = void 0; // 即将保存的新值。
 
     this.observers = []; // 依赖于当前属性的其他属性的 Observer 对象
+    this.watchings = []; // 当前属性依赖其他的
 
     this.sections = parsePath(name); // 保存路径节点
+
+    this._called = 0;
   }
 
   get isDirty() {
     return this.oldValue !== this.newValue;
+  }
+
+  get needToRecompute() {
+    return (
+      this.newValue !==
+      getValueOfPath(this.owner.__tempComputedResult, this.name).value
+    );
   }
 
   /**
@@ -75,6 +90,7 @@ class Observer {
    * 清除脏数据状态
    */
   clean() {
+    this._called = 0;
     this.oldValue = this.newValue;
   }
 
@@ -103,6 +119,7 @@ class Observer {
    * @param {any} [value] 从外部设置 Observer 的属性值
    */
   eval(value) {
+    this._called += 1;
     let _value = this.setValue(arguments.length ? value : this.compute());
     // [注]即使 `observer.fn` 非函数，这里也必需调用 `setValueOfPath` 重新赋值，
     // 因为 observer 所包装的属性如果是多节点路径，则必需保证该路径的存在。
@@ -117,27 +134,59 @@ class Observer {
    */
   setValue(value) {
     this.newValue = value;
-    // 如果是根节点观察者，或者临时新值不等于新值，则需要通知所有 observer 重新求值。
-    if (this.isRootObserver || this.tempValue !== this.newValue) {
-      this.observers.forEach(observer =>
-        pushObserverIntoQueue(this.owner.__computedObserverQueue, observer)
-      );
-    }
-    // 如果是非根节点属性新值发生变化了，则需要通知根节点所对应的所有 observer 更新状态
-    if (!this.isRootObserver && this.tempValue !== this.newValue) {
-      // 直接更新根节点观察者属性值
-      this.rootObserver.newValue = getValueOfPath(
-        this.owner.__tempComputedResult,
-        this.rootObserver.name
-      ).value;
-      // 通知根节点属性所有观察者更新状态（除了自己）
-      this.rootObserver.observers.forEach(observer => {
-        if (observer !== this) {
+    if (this.tempValue !== this.newValue) {
+      this.tempValue = this.newValue;
+      this.observers.forEach(observer => {
+        pushObserverIntoQueue(this.owner.__computedObserverQueue, observer);
+      });
+    } else {
+      // todo: 这里仍需修改，单元测试未通过
+      this.rootObserver.watchings.forEach(observer => {
+        if (observer !== this && observer.needToRecompute) {
           pushObserverIntoQueue(this.owner.__computedObserverQueue, observer);
         }
       });
     }
-    this.tempValue = this.newValue;
+
+    // if (!this.isRootObserver) {
+    //   // 直接更新根节点观察者属性值
+    //   this.rootObserver.newValue = getValueOfPath(
+    //     this.owner.__tempComputedResult,
+    //     this.rootObserver.name
+    //   ).value;
+    //   // 通知根节点属性所有观察者更新状态（除了自己）
+    //   this.rootObserver.observers.forEach(observer => {
+    //     if (observer.needToRecompute && observer !== this) {
+    //       pushObserverIntoQueue(this.owner.__computedObserverQueue, observer);
+    //     }
+    //   });
+    // }
+
+    // // 如果是根节点观察者，或者临时新值不等于新值，则需要通知所有 observer 重新求值。
+
+    // if (this.isRootObserver || this.tempValue !== this.newValue) {
+    //   this.observers.forEach(observer => {
+    //     pushObserverIntoQueue(this.owner.__computedObserverQueue, observer);
+    //   });
+    // }
+    // // 如果是非根节点属性新值发生变化了，则需要通知根节点所对应的所有 observer 更新状态
+    // if (!this.isRootObserver && this.tempValue !== this.newValue) {
+    //   // 直接更新根节点观察者属性值
+    //   this.rootObserver.newValue = getValueOfPath(
+    //     this.owner.__tempComputedResult,
+    //     this.rootObserver.name
+    //   ).value;
+    //   // 通知根节点属性所有观察者更新状态（除了自己）
+    //   this.rootObserver.observers.forEach(observer => {
+    //     // todo: test
+    //     if (observer.needToRecompute && observer !== this) {
+    //       // if (observer !== this) {
+    //       pushObserverIntoQueue(this.owner.__computedObserverQueue, observer);
+    //     }
+    //   });
+    // }
+
+    // this.tempValue = this.newValue;
     return value;
   }
 
@@ -174,7 +223,15 @@ const pushObserverIntoParentObservers = pushObserverIntoQueue;
 function consumeObserverQueue(queue) {
   let observer;
   let i = 0;
+  // todo: debug
+  console.log("------------------\n\n\n");
   while (queue.length) {
+    console.log(
+      `round:${i + 1}, length:${queue.length}`,
+      queue
+        .map(i => `${i.name}${i._called ? "[" + i._called + "]" : ""}`)
+        .join("; ")
+    );
     observer = queue.shift();
     observer.eval();
     // 防止因观察者互相通知更新状态导致死循环或长时间无响应
@@ -197,11 +254,20 @@ function updateOwnersObservers(observers) {
 }
 
 /**
+ * 清理 observer 状态
+ */
+function cleanOwnersObservers(observers) {
+  for (let k in observers) {
+    observers[k].clean();
+  }
+}
+
+/**
  * 初始化计算属性值
  * @param {object} owner Page/Component 实例
  */
-function initializeObserverValues(owner) {
-  owner.__tempComputedResult = { ...owner.data };
+function initializeObserverValues(owner, data) {
+  owner.__tempComputedResult = { ...data };
   let queue = owner.__computedObserverQueue;
   let observer, o;
   for (o in owner.__computedObservers) {
@@ -223,8 +289,6 @@ function initializeObserverValues(owner) {
  * @param {object} data 需要设置的属性键值对
  */
 function evaluateComputed(owner, data) {
-  // 这行可以不存在，因为本方法必需在初始化之后调用
-  if (!owner.__tempComputedResult) owner.__tempComputedResult = {};
   let observer;
   let queue = owner.__computedObserverQueue;
 
@@ -262,11 +326,46 @@ function evaluateComputed(owner, data) {
 }
 
 /**
+ * 在完成计算属性求值后，比较出发生变化的属性值。
+ *
+ * @param {array} paths 用户通过 setData 设置的必需更新的字段
+ */
+function diffDataAfterComputing(owner, data, different) {
+  let _data = {};
+
+  let { __tempComputedResult: result, __computedObservers: observers } = owner;
+
+  let k, item;
+  for (k in data) {
+    let { key, value } = getValueOfPath(result, k);
+    if (key) {
+      if (different) {
+        if (value !== data[k]) _data[k] = value;
+      } else {
+        _data[k] = value;
+      }
+    }
+  }
+
+  for (k in observers) {
+    item = observers[k];
+    if (!data.hasOwnProperty(k)) {
+      if (item.isDirty && !item.isShadowPath) {
+        _data[k] = item.newValue;
+      }
+    }
+  }
+
+  return _data;
+}
+
+/**
  * 初始化 Page/Component 实例，使其计算属性具有观察变化能力
  */
 function initializeComputed(owner, computed) {
   owner.__computedObserverQueue = [];
   owner.__computedObservers = {};
+  owner.__tempComputedResult = {};
 
   computed = formatComputedConfig(computed);
 
@@ -323,6 +422,14 @@ function createComputedObserver(owner, prop, childObserver) {
 
   if (childObserver) {
     pushObserverIntoParentObservers(observer.observers, childObserver);
+    pushObserverIntoParentObservers(childObserver.watchings, observer);
+    if (
+      observer.isRootObserver &&
+      isSameRootOfPath(observer.name, childObserver.name)
+    ) {
+      pushObserverIntoParentObservers(childObserver.observers, observer);
+      pushObserverIntoParentObservers(observer.watchings, childObserver);
+    }
   }
 }
 
@@ -348,8 +455,25 @@ function formatComputedConfig(computed) {
   return config;
 }
 
+function initiallyCompute(owner, computed) {
+  initializeComputed(owner, computed || {});
+  initializeObserverValues(owner, owner.data);
+  let data = diffDataAfterComputing(
+    owner,
+    Object.assign({}, owner.data, owner.__data),
+    true
+  );
+  cleanOwnersObservers(owner.__computedObservers);
+  owner.__data = null;
+  return data;
+}
+
 module.exports = {
+  cleanOwnersObservers,
+  diffDataAfterComputing,
   evaluateComputed,
   initializeComputed,
-  initializeObserverValues
+  initializeComputedValues: initializeObserverValues,
+  initializeObserverValues,
+  initiallyCompute
 };

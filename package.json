@@ -5,6 +5,7 @@
   "main": "dist/miniprogrampatch.js",
   "scripts": {
     "build": "gulp",
+    "buildnext": "gulp next",
     "release": "gulp release",
     "sample": "gulp sample",
     "test": "gulp && gulp sample",

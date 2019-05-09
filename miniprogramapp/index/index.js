@@ -70,19 +70,6 @@ Page({
       }
     },
 
-    /** 按时区排序的时钟 */
-    clocks: {
-      require: ["clock"],
-      fn({ clock }) {
-        let values = [];
-        for (var k in clock) {
-          values.push(clock[k]);
-        }
-        values.sort((x, y) => (x.time > y.time ? -1 : 1));
-        return values;
-      }
-    },
-
     /**
      * 曼谷时间
      */
@@ -113,6 +100,19 @@ Page({
       }
     },
 
+    /** 按时区排序的时钟 */
+    clocks: {
+      require: ["clock", "clock.Beijing"],
+      fn({ clock }) {
+        let values = [];
+        for (var k in clock) {
+          values.push(clock[k]);
+        }
+        values.sort((x, y) => (x.time > y.time ? -1 : 1));
+        return values;
+      }
+    },
+
     /**
      * 北京时间
      */
@@ -131,7 +131,7 @@ Page({
 
   data: {
     clock: {}, // 时钟
-    rounds: 5, // 计时次数
+    rounds: 2, // 计时次数
     count: 0, //
     numberOfLogs: 5, // 显示的日志条数
     logs: [] // total 属性的更新日志

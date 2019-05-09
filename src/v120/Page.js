@@ -2,13 +2,9 @@
  * @Author: laixi
  * @Date: 2018-10-21 21:27:48
  * @Last Modified by: Xavier Yin
- * @Last Modified time: 2019-05-07 17:11:36
+ * @Last Modified time: 2019-05-08 15:41:58
  */
-import {
-  initializeComputed,
-  evaluateComputed,
-  initializeObserverValues
-} from "./computed";
+import { initiallyCompute } from "./computed";
 import setDataApi from "./setDataApi";
 import { isFunction } from "./utils";
 import { initializeWatchers } from "./watch";
@@ -26,14 +22,8 @@ export function patchPage(Page, options) {
   // 封装页面构造函数
   let constructor = function(obj) {
     obj = Object.assign({}, obj);
-    // 初始化计算属性规则
-    // todo: 这里传入 owner 有问题
-    let owner = initializeComputed(
-      { data: obj.data || {} },
-      obj.computed || {}
-    );
 
-    let { onLoad, watch } = obj;
+    let { onLoad, watch, computed } = obj;
 
     // 封装 onLoad 钩子
     obj.onLoad = function(queries) {
@@ -43,12 +33,11 @@ export function patchPage(Page, options) {
         this.$setData = this.updateData = function(data, cb) {
           return setDataApi(data, cb, { ctx: this });
         };
-        // 初始化 computed 值
-        let computedResult = evaluateComputed(this, null, { initial: true });
 
-        this.__setData(computedResult);
+        this.__setData(initiallyCompute(this, computed || {}));
+
         // 初始化 watch 规则
-        this.__watch = initializeWatchers(this, watch || {});
+        this.__watchers = initializeWatchers(this, watch || {});
         try {
           // 小程序 2.2.3 版本以后，覆写原始 setData 方法
           if (!isSetDataReadOnly) {

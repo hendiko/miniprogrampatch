@@ -2,12 +2,13 @@
  * @Author: Xavier Yin
  * @Date: 2019-05-06 14:46:23
  * @Last Modified by: Xavier Yin
- * @Last Modified time: 2019-05-07 16:39:25
+ * @Last Modified time: 2019-05-09 11:19:15
  */
 import {
   evaluateComputed,
   initializeObserverValues,
-  initializeComputed as initializeObservers
+  initializeComputed as initializeObservers,
+  initiallyCompute
 } from "../src/v120/computed";
 
 describe("Test computed", () => {
@@ -66,8 +67,10 @@ describe("Test computed", () => {
       }
     };
 
-    page = initializeObservers({ data: { x: 1, y: 2 } }, computed);
-    initializeObserverValues(page);
+    page = { data: { x: 1, y: 2 } };
+    initiallyCompute(page, computed);
+    // page = initializeObservers({ data: { x: 1, y: 2 } }, computed);
+    // initializeObserverValues(page, page.data);
   });
 
   it("computed", () => {
@@ -80,7 +83,7 @@ describe("Test computed", () => {
     expect(data.c.nameLength).toBe(0);
     expect(data.c.nameLength2).toBe(0);
     expect(data.d.num[0]).toBe(0);
-    expect(data.d.numLength).toBe(0);
+    expect(data.d.numLength).toBe(1);
 
     evaluateComputed(page, { x: 100, y: 200, "a.b.c": 300, name: "Green" });
 

@@ -2,13 +2,16 @@
  * @Author: Xavier Yin
  * @Date: 2019-05-07 15:49:50
  * @Last Modified by: Xavier Yin
- * @Last Modified time: 2019-05-07 16:32:02
+ * @Last Modified time: 2019-05-08 15:00:41
  */
 
 import { isObject } from "./utils";
-import { evaluateComputed } from "./computed";
+import {
+  evaluateComputed,
+  cleanOwnersObservers,
+  diffDataAfterComputing
+} from "./computed";
 import { formatPath } from "./parsePath";
-import { getValueOfPath } from "./evalPath";
 import { checkWatchers } from "./watch";
 
 function formatData(data) {
@@ -22,39 +25,29 @@ function formatData(data) {
 function setDataApi(data, cb, options) {
   if (!isObject(data)) return;
 
-  let { ctx } = options;
+  let { ctx, initial } = options;
+
   let changing = ctx.__changing;
   ctx.__changing = true;
 
   if (!changing) {
-    data = formatData(data);
+    ctx.__data = {};
     ctx.__tempComputedResult = { ...ctx.data };
   }
+
+  data = formatData(data);
+  Object.assign(ctx.__data, data);
 
   evaluateComputed(ctx, data);
 
   if (changing) return;
 
-  let _data = {};
+  let _data = diffDataAfterComputing(ctx, ctx.__data, initial);
 
-  let k, observer;
-  for (k in data) {
-    let { key, value } = getValueOfPath(ctx.__tempComputedResult, k);
-    if (key) {
-      _data[k] = value;
-    }
-  }
+  cleanOwnersObservers(ctx.__computedObservers);
 
-  for (k in ctx.__computedObservers) {
-    observer = ctx.__computedObservers[k];
-    if (!data.hasOwnProperty(k)) {
-      if (!observer.isShadowPath && observer.isDirty) {
-        _data[k] = observer.newValue;
-      }
-    }
-    observer.clean();
-  }
-
+  ctx.__data = null;
+  ctx.__changing = false;
   ctx.__setData(_data, cb);
   checkWatchers(ctx);
 }
