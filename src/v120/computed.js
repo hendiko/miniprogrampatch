@@ -2,7 +2,7 @@
  * @Author: Xavier Yin
  * @Date: 2019-04-30 09:46:15
  * @Last Modified by: Xavier Yin
- * @Last Modified time: 2019-05-09 11:20:45
+ * @Last Modified time: 2019-05-17 16:17:18
  */
 
 import parsePath, {
@@ -141,9 +141,14 @@ class Observer {
       });
     } else {
       // todo: 这里仍需修改，单元测试未通过
-      this.rootObserver.watchings.forEach(observer => {
-        if (observer !== this && observer.needToRecompute) {
-          pushObserverIntoQueue(this.owner.__computedObserverQueue, observer);
+      this.rootObserver.observers.forEach(observer => {
+        if (observer !== this) {
+          if (
+            observer.needToRecompute ||
+            observer.watchings.findIndex(item => item.needToRecompute) > -1
+          ) {
+            pushObserverIntoQueue(this.owner.__computedObserverQueue, observer);
+          }
         }
       });
     }
@@ -441,8 +446,8 @@ function formatComputedConfig(computed) {
   let config = [];
   let k, v;
   for (k in computed) {
-    k = formatPath(k);
     v = computed[k];
+    k = formatPath(k);
     if (isFunction(v)) {
       config.push({ name: k, require: [], fn: v });
     } else if (isObject(v)) {

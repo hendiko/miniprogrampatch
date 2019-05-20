@@ -131,7 +131,7 @@ Page({
 
   data: {
     clock: {}, // 时钟
-    rounds: 2, // 计时次数
+    rounds: 1, // 计时次数
     count: 0, //
     numberOfLogs: 5, // 显示的日志条数
     logs: [] // total 属性的更新日志

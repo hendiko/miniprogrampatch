@@ -84,7 +84,7 @@ gulp.task("release", () => webpackRunner({ release: true }));
 
 gulp.task("default", () => webpackRunner());
 
-gulp.task("next", () => webpackRunner({ entry: "./src/v120/index" }));
+gulp.task("next", () => webpackRunner({ entry: "./src/v120/alpha/index" }));
 
 gulp.task("sample", () => {
   return gulp

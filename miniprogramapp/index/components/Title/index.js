@@ -17,6 +17,10 @@ Component({
     }
   },
 
+  attached() {
+    getApp().t = this;
+  },
+
   /**
    * 组件的初始数据
    */

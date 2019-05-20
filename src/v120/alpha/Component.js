@@ -2,12 +2,15 @@
  * @Author: laixi
  * @Date: 2018-10-21 21:49:26
  * @Last Modified by: Xavier Yin
- * @Last Modified time: 2019-05-09 18:24:38
+ * @Last Modified time: 2019-05-20 13:07:35
  */
-import { initiallyCompute } from "./computed";
+import {
+  constructComputedFeature,
+  calculateInitialComputedValues
+} from "./computed";
 import setDataApi from "./setDataApi";
 import { isFunction, isObject } from "./utils";
-import { initializeWatchers } from "./watch";
+import { constructWatchFeature } from "./watch";
 
 /**
  * 封装（重新定义）构造配置中的 properties 属性。
@@ -27,7 +30,7 @@ function initializeProperties(props) {
     prop.observer = function(newVal, oldVal, changedPath) {
       // 如果未初始化计算能力，则不调用
       if (this.$setData && this.$setData.__attached) {
-        setDataApi({ [name]: newVal }, null, { initial: true, ctx: this });
+        setDataApi({ [name]: newVal }, null, { ctx: this });
       }
       // 如果 prop 中定义了 observer 函数，则触发该函数调用。
       if (isFunction(observer))
@@ -94,6 +97,8 @@ export function patchComponent(Component, options) {
         };
       }
 
+      constructComputedFeature(this, computed);
+
       // 如果定义了函数 created 钩子，才执行（小程序原生行为并未检查 created 钩子合法性，如果定义了非函数钩子，则直接报错）
       if (isFunction(created)) created.apply(this, arguments);
     };
@@ -111,10 +116,10 @@ export function patchComponent(Component, options) {
         // 用来标识这个 $setData 不是 created 钩子中的临时方法。
         this.$setData.__attached = true;
 
-        this.__setData(initiallyCompute(this, computed || {}));
+        this.__setData(calculateInitialComputedValues(this));
 
         // 初始化 watch 配置
-        this.__watchers = initializeWatchers(this, watch || {});
+        constructWatchFeature(this, watch || {}, this.data);
 
         try {
           // 小程序 2.2.3 版本以后，覆写 `this.setData` 方法。
