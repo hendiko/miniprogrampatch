@@ -4,6 +4,7 @@ import pkg from "./package.json";
 import path from "path";
 import WrapperPlugin from "wrapper-webpack-plugin";
 import UglifyJSPlugin from "uglifyjs-webpack-plugin";
+import Jasmine from "jasmine";
 
 // since webpack 4.0, webpack is built with UglifyJSPlugin if its mode is production.
 var webpackConfig = {
@@ -11,10 +12,10 @@ var webpackConfig = {
 
   name: pkg.name,
 
-  entry: "src/index.js",
+  entry: "./src/index.js",
 
   build(options) {
-    let { mode = "none" } = options || {};
+    let { mode = "none", entry = this.entry } = options || {};
     let isDev = mode !== "production";
     let outputFilename = `${this.name}.js`;
     let outputPath = path.join(__dirname, isDev ? "build" : "dist");
@@ -23,7 +24,7 @@ var webpackConfig = {
       new WrapperPlugin({
         header: `// ${pkg.name} v${
           pkg.version
-          } ${new Date().toDateString()}  \n`
+        } ${new Date().toDateString()}  \n`
       })
     ];
     if (!isDev) {
@@ -31,6 +32,7 @@ var webpackConfig = {
     }
 
     return {
+      entry,
       mode: "none", // it should not set mode into production, because the builtin uglifyjs plugin would remove header from bundle file that is added by WrapperPlugin.
       output: {
         path: outputPath,
@@ -65,15 +67,44 @@ var webpackConfig = {
 function webpackRunner(options) {
   let { release } = options || {};
   return new Promise((resolve, reject) => {
-    webpack(webpackConfig[release ? "release" : "build"](), (err, status) => {
-      if (err) {
-        reject(err);
-      } else {
-        resolve(status);
+    webpack(
+      webpackConfig[release ? "release" : "build"](options),
+      (err, status) => {
+        if (err) {
+          reject(err);
+        } else {
+          resolve(status);
+        }
       }
-    });
+    );
   });
 }
 
 gulp.task("release", () => webpackRunner({ release: true }));
+
 gulp.task("default", () => webpackRunner());
+
+gulp.task("next", () => webpackRunner({ entry: "./src/v120/alpha/index" }));
+
+gulp.task("sample", () => {
+  return gulp
+    .src("./build/miniprogrampatch.js")
+    .pipe(gulp.dest("miniprogramapp"));
+});
+
+gulp.task("unittest", () => {
+  let jasmine = new Jasmine();
+
+  jasmine.loadConfigFile("./spec/support/jasmine.json");
+  jasmine.execute();
+
+  return new Promise((resolve, reject) => {
+    jasmine.onComplete(success => {
+      if (success) {
+        resolve("Unit test passed");
+      } else {
+        reject("Unit test not passed");
+      }
+    });
+  });
+});

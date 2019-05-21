@@ -1,11 +1,13 @@
-<view class="intro">date: {{timestamp}}</view>
-<view class="intro">count: {{count}}</view>
-<view class="intro">countByTen: {{countByTen}}</view>
-<view class="intro">countByHundred: {{countByHundred}}</view>
-<view class="intro">total: {{total}}</view>
-<view class="intro">x.y.z: {{x && x.y && x.y.z}}</view>
-<title total="{{total}}"></title>
-<view class="title">total change logs:</view>
-<view class="intro {{item === thirdLog ? 'red' : ''}}" wx:for="{{logs}}" wx:key="{{index}}">
-    {{index+1}}. {{item}}
-</view>
+<view class="intro">页面打开时间: {{startTimeText}}</view>
+<view class="intro">x = count = {{count}}</view>
+<view class="intro">y = count * 10 = {{countByTen}}</view>
+<view class="intro">z = count * 100 = {{countByHundred}}</view>
+<view class="intro">total = x + y + z = {{total}}</view>
+<view class="intro" wx:for="{{clocks}}" wx:key="city">{{item.city}}时间：{{item.locale}}</view>
+<view class="title">显示最后{{numberOfLogs}}条日志:</view>
+<block wx:for="{{logs}}" wx:key="index">
+    <view wx:if="{{index + numberOfLogs >= logs.length}}" class="intro {{index % 2 === 0 ? 'red' : ''}}">
+        {{index+1}}. {{item}}
+    </view>
+</block>
+<title total="{{total}}" ></title>

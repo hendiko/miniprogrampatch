@@ -1,36 +1,18 @@
-const app = getApp()
+const app = getApp();
 
 // 局部增强
 Page({
-
   watch: {
-
-    'x.y.z': function (value, old) {
-      console.log('x.y.z', value === old, value, old); // x.y.z false
-    },
-
-    'x.y': function (value, old) {
-      console.log('x.y', value === old);  // x.y true
-    },
-
-    'x': function (value, old) {
-      console.log('x', value === old); // x true
-    },
-
-    /** 观察日志变化 */
-    logs(value, old) {
-      // 因为此处通过 this.$setData({"logs[n]": value}) 来更新数据
-      // 因此 logs 属性数组内数据发生变化，但数组本身没有被变更。
-      console.log('logs', value === old);  // print: logs true
-    },
-
     /** 观察 total 属性 */
     total(value, old) {
-      let log = `total: new ${value} vs old ${old}`;
       let { logs } = this.data;
-      let name = `logs[${logs.length}]`;
-      this.$setData({ [name]: log });
-      if (value > 2500) {
+      this.$setData({
+        [`logs[${logs.length}]`]: `total: new ${value} vs old ${old}`
+      });
+    },
+
+    count(val) {
+      if (val >= this.data.rounds) {
         this.stop();
       }
     }
@@ -38,80 +20,138 @@ Page({
 
   computed: {
     /** 页面加载的时间戳（不依赖其他属性） */
-    timestamp() {
+    startTime() {
       return Date.now();
+    },
+
+    startTimeText: {
+      require: ["startTime"],
+      fn({ startTime }) {
+        return new Date(startTime).toLocaleString();
+      }
     },
 
     /** count 乘以 10 */
     countByTen: {
-      require: ['count'],
+      require: ["count"],
       fn({ count }) {
-        return count * 10
+        return count * 10;
       }
     },
 
     /** count 乘以 100 */
     countByHundred: {
-      require: ['countByTen'],
+      require: ["countByTen"],
       fn({ countByTen }) {
         return countByTen * 10;
       }
     },
 
+    /** 已流逝的秒数 */
+    seconds: {
+      require: ["count"],
+      fn({ count }) {
+        return count;
+      }
+    },
+
+    milliseconds: {
+      require: ["seconds"],
+      fn({ seconds }) {
+        return seconds * 1000;
+      }
+    },
+
     /** 总数 */
     total: {
-      require: ['count', 'countByTen', 'countByHundred'],
+      require: ["count", "countByTen", "countByHundred"],
       fn({ count, countByTen, countByHundred }) {
         return count + countByTen + countByHundred;
       }
     },
 
-    /** 返回 total 的第三条更新日志 */
-    thirdLog: {
-      require: ['logs[2]'],
-      fn({ "logs[2]": x }) {
-        return x;
+    /**
+     * 曼谷时间
+     */
+    "clock.Bangkok": {
+      require: ["clock.Tokyo.time"],
+      fn({ "clock.Tokyo.time": clock }) {
+        let ms = (clock || 0) - 3600 * 1000 * 2;
+        return {
+          city: "曼谷",
+          time: ms,
+          locale: new Date(ms).toLocaleString()
+        };
       }
     },
 
-    'x.y.z': {
-      require: ['total'],
-      fn({ total }) {
-        return total;
+    /**
+     * 东京时间
+     */
+    "clock.Tokyo": {
+      require: ["clock.Beijing.time"],
+      fn({ "clock.Beijing.time": clock }) {
+        let ms = (clock || 0) + 3600 * 1000;
+        return {
+          city: "东京",
+          time: ms,
+          locale: new Date(ms).toLocaleString()
+        };
       }
     },
 
-    firstOne: {
-      require: ['res.list'],
-      fn({'res.list': list}) {
-        let first = (list || [])[0];
-        return first || null;
+    /** 按时区排序的时钟 */
+    clocks: {
+      require: ["clock"],
+      fn({ clock }) {
+        let values = [];
+        for (var k in clock) {
+          values.push(clock[k]);
+        }
+        values.sort((x, y) => (x.time > y.time ? -1 : 1));
+        return values;
+      },
+      keen: true
+    },
+
+    /**
+     * 北京时间
+     */
+    "clock.Beijing": {
+      require: ["milliseconds", "startTime"],
+      fn({ milliseconds, startTime }) {
+        let ms = milliseconds + startTime;
+        return {
+          city: "北京",
+          time: ms,
+          locale: new Date(ms).toLocaleString()
+        };
       }
     }
   },
 
-
   data: {
-    res: {
-      list: []
-    },
-    count: 10,
-    logs: []   // total 属性的更新日志
+    clock: {}, // 时钟
+    rounds: 0, // 计时次数
+    count: 0, //
+    numberOfLogs: 5, // 显示的日志条数
+    logs: [] // total 属性的更新日志
   },
 
   /** 开启定时器 */
-  onLoad: function () {
-    app.home = this;
+  onLoad() {
     this.start();
   },
 
   /** 每秒钟 count 属性加 1 */
   start() {
     this.stop();
-    this.timer = setInterval(() => {
-      let { count } = this.data;
-      this.$setData({ count: count + 1 })
-    }, 1000)
+    if (this.data.rounds > 0) {
+      this.timer = setInterval(() => {
+        let { count } = this.data;
+        this.$setData({ count: count + 1 });
+      }, 1000);
+    }
   },
 
   /** 停止 count 属性自增 */
@@ -123,4 +163,4 @@ Page({
   onUnload() {
     this.stop();
   }
-})
+});

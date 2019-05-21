@@ -1,9 +1,9 @@
 // index/components/Title/index.js
 Component({
-
   watch: {
     total(value, old) {
-      console.log('title: ', value, old, this, this.attached);
+      let text = `组件 Title 的 total 值: ${value}`;
+      this.$setData({ text });
     }
   },
 
@@ -17,17 +17,19 @@ Component({
     }
   },
 
+  attached() {
+    getApp().t = this;
+  },
+
   /**
    * 组件的初始数据
    */
   data: {
-
+    text: "no found"
   },
 
   /**
    * 组件的方法列表
    */
-  methods: {
-
-  }
-})
+  methods: {}
+});
