@@ -10,4 +10,4 @@
         {{index+1}}. {{item}}
     </view>
 </block>
-<title total="{{total}}"></title>
+<title total="{{total}}" ></title>

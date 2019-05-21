@@ -102,7 +102,7 @@ Page({
 
     /** 按时区排序的时钟 */
     clocks: {
-      require: ["clock", "clock.Beijing"],
+      require: ["clock"],
       fn({ clock }) {
         let values = [];
         for (var k in clock) {
@@ -110,7 +110,8 @@ Page({
         }
         values.sort((x, y) => (x.time > y.time ? -1 : 1));
         return values;
-      }
+      },
+      keen: true
     },
 
     /**
@@ -131,7 +132,7 @@ Page({
 
   data: {
     clock: {}, // 时钟
-    rounds: 1, // 计时次数
+    rounds: 0, // 计时次数
     count: 0, //
     numberOfLogs: 5, // 显示的日志条数
     logs: [] // total 属性的更新日志
@@ -145,10 +146,12 @@ Page({
   /** 每秒钟 count 属性加 1 */
   start() {
     this.stop();
-    this.timer = setInterval(() => {
-      let { count } = this.data;
-      this.$setData({ count: count + 1 });
-    }, 1000);
+    if (this.data.rounds > 0) {
+      this.timer = setInterval(() => {
+        let { count } = this.data;
+        this.$setData({ count: count + 1 });
+      }, 1000);
+    }
   },
 
   /** 停止 count 属性自增 */

@@ -2,7 +2,7 @@
  * @Author: laixi
  * @Date: 2018-10-20 13:17:17
  * @Last Modified by: Xavier Yin
- * @Last Modified time: 2019-05-07 12:04:20
+ * @Last Modified time: 2019-05-21 09:17:41
  */
 export const isObject = obj => obj !== null && "object" === typeof obj;
 export const isFunction = obj => "function" === typeof obj;

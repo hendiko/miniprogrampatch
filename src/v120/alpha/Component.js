@@ -2,11 +2,11 @@
  * @Author: laixi
  * @Date: 2018-10-21 21:49:26
  * @Last Modified by: Xavier Yin
- * @Last Modified time: 2019-05-20 13:07:35
+ * @Last Modified time: 2019-05-21 10:55:25
  */
 import {
-  constructComputedFeature,
-  calculateInitialComputedValues
+  calculateInitialComputedValues,
+  constructComputedFeature
 } from "./computed";
 import setDataApi from "./setDataApi";
 import { isFunction, isObject } from "./utils";
@@ -17,7 +17,7 @@ import { constructWatchFeature } from "./watch";
  * @param {object} props 构造配置中的 properties 属性值
  */
 function initializeProperties(props) {
-  for (var name in props) {
+  for (let name in props) {
     let prop = props[name];
     // 如果构造配置中使用 `{propName<string>: constructor<function>}` 格式来定义 prop，
     // 那么将它转换为 `{prop<string>: config<object>}` 格式
@@ -30,7 +30,9 @@ function initializeProperties(props) {
     prop.observer = function(newVal, oldVal, changedPath) {
       // 如果未初始化计算能力，则不调用
       if (this.$setData && this.$setData.__attached) {
-        setDataApi({ [name]: newVal }, null, { ctx: this });
+        this.$setData({ [name]: newVal });
+        // let result = calculateAfterPropChanged(this, name, newVal);
+        // if (result) setDataApi(result, null, { ctx: this });
       }
       // 如果 prop 中定义了 observer 函数，则触发该函数调用。
       if (isFunction(observer))
@@ -116,7 +118,8 @@ export function patchComponent(Component, options) {
         // 用来标识这个 $setData 不是 created 钩子中的临时方法。
         this.$setData.__attached = true;
 
-        this.__setData(calculateInitialComputedValues(this));
+        let values = calculateInitialComputedValues(this);
+        if (values) this.__setData(values);
 
         // 初始化 watch 配置
         constructWatchFeature(this, watch || {}, this.data);

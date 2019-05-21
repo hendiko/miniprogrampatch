@@ -2,7 +2,7 @@
  * @Author: laixi
  * @Date: 2018-10-21 21:27:48
  * @Last Modified by: Xavier Yin
- * @Last Modified time: 2019-05-20 11:34:23
+ * @Last Modified time: 2019-05-21 09:37:41
  */
 import {
   constructComputedFeature,
@@ -39,7 +39,8 @@ export function patchPage(Page, options) {
 
         constructComputedFeature(this, computed);
 
-        this.__setData(calculateInitialComputedValues(this));
+        let values = calculateInitialComputedValues(this);
+        if (values) this.__setData(values);
 
         // 初始化 watch 规则
         constructWatchFeature(this, watch || {}, this.data);

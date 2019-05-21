@@ -2,7 +2,7 @@
  * @Author: Xavier Yin
  * @Date: 2019-05-06 14:46:23
  * @Last Modified by: Xavier Yin
- * @Last Modified time: 2019-05-20 11:15:54
+ * @Last Modified time: 2019-05-21 11:07:41
  */
 import {
   evaluateComputed,
@@ -127,12 +127,13 @@ describe("Test computed alpha", () => {
           return name || "";
         }
       },
-      "c.nameLength": {
+      "c.nameLength3": {
         require: ["c"],
         fn({ c }) {
           let { name = "" } = c || {};
           return name.length;
-        }
+        },
+        keen: true
       },
       "c.nameLength2": {
         require: ["c.name."],
@@ -141,8 +142,8 @@ describe("Test computed alpha", () => {
         }
       },
       "d.num[0]": {
-        require: ["c.nameLength"],
-        fn({ "c.nameLength": len }) {
+        require: ["c.nameLength3"],
+        fn({ "c.nameLength3": len }) {
           return len;
         }
       },
@@ -173,9 +174,9 @@ describe("Test computed alpha", () => {
     expect(data.once.foo).toBe(10);
     expect(data.a).toBeUndefined();
     expect(data.b).toBeUndefined();
-    expect(data.z).toBe(0);
+    expect(data.z).toBe(3);
     expect(data.c.name).toBe("");
-    expect(data.c.nameLength).toBe(0);
+    expect(data.c.nameLength3).toBe(0);
     expect(data.c.nameLength2).toBe(0);
     expect(data.d.num[0]).toBe(0);
     expect(data.d.numLength).toBe(1);
@@ -192,7 +193,7 @@ describe("Test computed alpha", () => {
     expect(data.b).toEqual({ c: 300 });
     expect(data.z).toBe(300);
     expect(data.c.name).toBe("Green");
-    expect(data.c.nameLength).toBe(5);
+    expect(data.c.nameLength3).toBe(5);
     expect(data.c.nameLength2).toBe(5);
     expect(data.d.num[0]).toBe(5);
     expect(data.d.numLength).toBe(1);

@@ -1,4 +1,4 @@
-// miniprogrampatch v1.2.0 Mon May 20 2019  
+// miniprogrampatch v1.2.0 Tue May 21 2019  
 (function webpackUniversalModuleDefinition(root, factory) {
 	if(typeof exports === 'object' && typeof module === 'object')
 		module.exports = factory();
@@ -148,7 +148,7 @@ function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { de
  * @Author: laixi
  * @Date: 2018-10-21 21:27:48
  * @Last Modified by: Xavier Yin
- * @Last Modified time: 2019-05-20 11:34:23
+ * @Last Modified time: 2019-05-21 09:37:41
  */
 function patchPage(Page, options) {
   if (Page.__patchPage) return Page;
@@ -180,7 +180,8 @@ function patchPage(Page, options) {
 
         (0, _computed.constructComputedFeature)(this, computed);
 
-        this.__setData((0, _computed.calculateInitialComputedValues)(this));
+        var values = (0, _computed.calculateInitialComputedValues)(this);
+        if (values) this.__setData(values);
 
         // 初始化 watch 规则
         (0, _watch.constructWatchFeature)(this, watch || {}, this.data);
@@ -222,7 +223,7 @@ var _createClass = function () { function defineProperties(target, props) { for 
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       * @Author: Xavier Yin
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       * @Date: 2019-05-09 14:08:48
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       * @Last Modified by: Xavier Yin
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      * @Last Modified time: 2019-05-20 14:03:19
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      * @Last Modified time: 2019-05-21 11:07:55
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       */
 
 var _parsePath = __webpack_require__(3);
@@ -242,17 +243,18 @@ function _classCallCheck(instance, Constructor) { if (!(instance instanceof Cons
 var MAX_ROUNDS_OF_CONSUMPTION = 100000;
 
 var observerAddToQueue = function observerAddToQueue(observer) {
-  return observer.addToQueue();
+  return !observer._evaluating && observer.addToQueue();
 };
 
 var Observer = function () {
-  function Observer(owner, name, required, fn) {
+  function Observer(owner, name, required, fn, caution) {
     _classCallCheck(this, Observer);
 
     this.owner = owner;
     this.name = name;
     this.required = required || [];
     this.fn = fn;
+    this.caution = !!caution;
 
     this.oldVal = this.newVal = void 0;
 
@@ -265,6 +267,8 @@ var Observer = function () {
     this.watchings = [];
     this.children = [];
 
+    this.cautionObservers = [];
+
     this.evalTimes = 0;
   }
 
@@ -273,6 +277,14 @@ var Observer = function () {
       return item === observer;
     }) < 0) {
       this.children.push(observer);
+    }
+  };
+
+  Observer.prototype.addDirtyObserver = function addDirtyObserver(observer) {
+    if (this.cautionObservers.findIndex(function (item) {
+      return item === observer;
+    }) < 0) {
+      this.cautionObservers.push(observer);
     }
   };
 
@@ -308,6 +320,8 @@ var Observer = function () {
     if (this.dirty) {
       this.newVal = this.getTempResult().value;
       this.observers.forEach(observerAddToQueue);
+    } else {
+      this.cautionObservers.forEach(observerAddToQueue);
     }
   };
 
@@ -334,6 +348,7 @@ var Observer = function () {
   };
 
   Observer.prototype.eval = function _eval(value) {
+    this._evaluating = true;
     this.evalTimes++;
 
     // 是否是外部赋值
@@ -343,14 +358,12 @@ var Observer = function () {
 
     var dirtyCheck = void 0,
         updateValue = void 0;
-    var isDiff = !(0, _utils.isEqual)(this.newVal, _value);
+    var isDiff = assigning || !(0, _utils.isEqual)(this.newVal, _value);
     this.newVal = _value;
 
     if (assigning) {
       dirtyCheck = true;
-      if (isDiff || !this.isAlive) {
-        updateValue = true;
-      }
+      updateValue = true;
     } else if (isDiff) {
       dirtyCheck = true;
       if (!this.readonly) updateValue = true;
@@ -369,6 +382,7 @@ var Observer = function () {
     if (isDiff) {
       this.observers.forEach(observerAddToQueue);
     }
+    this._evaluating = false;
   };
 
   Observer.prototype.getTempResult = function getTempResult() {
@@ -442,7 +456,8 @@ function createComputedObserver(owner, prop, observer) {
   var name = prop.name,
       _prop$require = prop.require,
       req = _prop$require === undefined ? [] : _prop$require,
-      fn = prop.fn;
+      fn = prop.fn,
+      caution = prop.caution;
 
 
   var _observer = obj[name];
@@ -451,6 +466,7 @@ function createComputedObserver(owner, prop, observer) {
     if (fn) {
       _observer.fn = fn;
       _observer.required = req;
+      _observer.caution = caution;
       // 同一个 observer 不应该在 computed 配置中定义多次
       // 如果定义多次，那后者将覆盖前者的依赖关系（但并没有从 observer.observers 将之前已添加的观察删除。）
       for (var i = 0; i < req.length; i++) {
@@ -458,7 +474,7 @@ function createComputedObserver(owner, prop, observer) {
       }
     }
   } else {
-    _observer = obj[name] = new Observer(owner, name, req, fn);
+    _observer = obj[name] = new Observer(owner, name, req, fn, caution);
     if (!_observer.isRootObserver) {
       var rootObserver = createComputedObserver(owner, {
         name: _observer.rootPath
@@ -473,6 +489,9 @@ function createComputedObserver(owner, prop, observer) {
   if (observer) {
     _observer.addObserver(observer);
     observer.addWatching(_observer);
+    if (observer.caution) {
+      _observer.addDirtyObserver(observer);
+    }
   }
 
   return _observer;
@@ -490,7 +509,8 @@ function formatComputedDefinition(computed) {
     } else if ((0, _utils.isObject)(v)) {
       var _v = v,
           req = _v.require,
-          fn = _v.fn;
+          fn = _v.fn,
+          keen = _v.keen;
 
       if ((0, _utils.isFunction)(fn)) {
         config.push({
@@ -498,7 +518,8 @@ function formatComputedDefinition(computed) {
           require: (req || []).map(function (n) {
             return (0, _parsePath.formatPath)(n);
           }),
-          fn: fn
+          fn: fn,
+          caution: keen
         });
       }
     }
@@ -549,25 +570,10 @@ function evaluateComputedResult(owner, input) {
   consumeObserverQueue(queue);
 }
 
-function calculateInitialComputedValues(owner) {
-  var observers = owner.__computedObservers,
-      queue = owner.__computingQueue;
-
-
-  var k = void 0,
-      observer = void 0;
-  for (k in observers) {
-    observer = observers[k];
-    if (!observer.readonly) {
-      observer.addToQueue();
-    }
-  }
-
-  if (queue.length) {
-    consumeObserverQueue(queue);
-  }
-
+function calculateAliveChanges(observers) {
   var data = {};
+  var observer = void 0,
+      k = void 0;
   for (k in observers) {
     observer = observers[k];
     if (observer.isAlive && observer.changed) {
@@ -575,8 +581,33 @@ function calculateInitialComputedValues(owner) {
     }
     observer.clean();
   }
+  return Object.keys(data).length ? data : null;
+}
 
-  return data;
+function calculateInitialComputedValues(owner) {
+  var observers = owner.__computedObservers,
+      queue = owner.__computingQueue,
+      result = owner.__tempComputedResult;
+
+
+  Object.assign(result, owner.data);
+
+  var k = void 0,
+      observer = void 0;
+  for (k in observers) {
+    observer = observers[k];
+    if (observer.readonly) {
+      observer.eval();
+    } else {
+      observer.watchings.forEach(observerAddToQueue);
+      observer.addToQueue();
+    }
+  }
+
+  if (queue.length) {
+    consumeObserverQueue(queue);
+    return calculateAliveChanges(observers);
+  }
 }
 
 exports.calculateInitialComputedValues = calculateInitialComputedValues;
@@ -990,7 +1021,7 @@ exports.hasIntersection = hasIntersection;
  * @Author: laixi
  * @Date: 2018-10-20 13:17:17
  * @Last Modified by: Xavier Yin
- * @Last Modified time: 2019-05-20 14:03:00
+ * @Last Modified time: 2019-05-21 09:17:46
  */
 var isObject = exports.isObject = function isObject(obj) {
   return obj !== null && "object" === (typeof obj === "undefined" ? "undefined" : _typeof(obj));
@@ -1000,6 +1031,9 @@ var isFunction = exports.isFunction = function isFunction(obj) {
 };
 var isArray = exports.isArray = function isArray(x) {
   return x && x.constructor === Array;
+};
+var trim = exports.trim = function trim(str) {
+  return str.replace(/(^\s+)|(\s+$)/g, "");
 };
 
 var _isNaN = exports._isNaN = function _isNaN(x) {
@@ -1207,9 +1241,9 @@ exports.patchComponent = patchComponent;
 
 var _computed = __webpack_require__(2);
 
-var _setDataApi2 = __webpack_require__(7);
+var _setDataApi = __webpack_require__(7);
 
-var _setDataApi3 = _interopRequireDefault(_setDataApi2);
+var _setDataApi2 = _interopRequireDefault(_setDataApi);
 
 var _utils = __webpack_require__(6);
 
@@ -1225,10 +1259,10 @@ function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { de
  * @Author: laixi
  * @Date: 2018-10-21 21:49:26
  * @Last Modified by: Xavier Yin
- * @Last Modified time: 2019-05-20 13:07:35
+ * @Last Modified time: 2019-05-21 10:55:25
  */
 function initializeProperties(props) {
-  var _loop = function _loop() {
+  var _loop = function _loop(name) {
     var prop = props[name];
     // 如果构造配置中使用 `{propName<string>: constructor<function>}` 格式来定义 prop，
     // 那么将它转换为 `{prop<string>: config<object>}` 格式
@@ -1243,9 +1277,11 @@ function initializeProperties(props) {
     prop.observer = function (newVal, oldVal, changedPath) {
       // 如果未初始化计算能力，则不调用
       if (this.$setData && this.$setData.__attached) {
-        var _setDataApi;
+        var _$setData;
 
-        (0, _setDataApi3.default)((_setDataApi = {}, _setDataApi[name] = newVal, _setDataApi), null, { ctx: this });
+        this.$setData((_$setData = {}, _$setData[name] = newVal, _$setData));
+        // let result = calculateAfterPropChanged(this, name, newVal);
+        // if (result) setDataApi(result, null, { ctx: this });
       }
       // 如果 prop 中定义了 observer 函数，则触发该函数调用。
       if ((0, _utils.isFunction)(observer)) observer.call(this, newVal, oldVal, changedPath);
@@ -1253,7 +1289,7 @@ function initializeProperties(props) {
   };
 
   for (var name in props) {
-    _loop();
+    _loop(name);
   }
   return props;
 }
@@ -1338,13 +1374,14 @@ function patchComponent(Component, options) {
         // 保留原始 setData 的引用。
         this.__setData = this.setData;
         this.$setData = this.updateData = function (data, cb) {
-          return (0, _setDataApi3.default)(data, cb, { ctx: this });
+          return (0, _setDataApi2.default)(data, cb, { ctx: this });
         };
 
         // 用来标识这个 $setData 不是 created 钩子中的临时方法。
         this.$setData.__attached = true;
 
-        this.__setData((0, _computed.calculateInitialComputedValues)(this));
+        var values = (0, _computed.calculateInitialComputedValues)(this);
+        if (values) this.__setData(values);
 
         // 初始化 watch 配置
         (0, _watch.constructWatchFeature)(this, watch || {}, this.data);

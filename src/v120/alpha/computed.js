@@ -2,7 +2,7 @@
  * @Author: Xavier Yin
  * @Date: 2019-05-09 14:08:48
  * @Last Modified by: Xavier Yin
- * @Last Modified time: 2019-05-20 14:03:19
+ * @Last Modified time: 2019-05-21 11:07:55
  */
 
 import parsePath, { compactPath, composePath, formatPath } from "./parsePath";
@@ -12,14 +12,16 @@ import { isObject, isFunction, isEqual } from "./utils";
 
 const MAX_ROUNDS_OF_CONSUMPTION = 100000;
 
-const observerAddToQueue = observer => observer.addToQueue();
+const observerAddToQueue = observer =>
+  !observer._evaluating && observer.addToQueue();
 
 class Observer {
-  constructor(owner, name, required, fn) {
+  constructor(owner, name, required, fn, caution) {
     this.owner = owner;
     this.name = name;
     this.required = required || [];
     this.fn = fn;
+    this.caution = !!caution;
 
     this.oldVal = this.newVal = void 0;
 
@@ -31,6 +33,8 @@ class Observer {
     this.observers = [];
     this.watchings = [];
     this.children = [];
+
+    this.cautionObservers = [];
 
     this.evalTimes = 0;
   }
@@ -67,6 +71,12 @@ class Observer {
     }
   }
 
+  addDirtyObserver(observer) {
+    if (this.cautionObservers.findIndex(item => item === observer) < 0) {
+      this.cautionObservers.push(observer);
+    }
+  }
+
   addObserver(observer) {
     if (this.observers.findIndex(item => item === observer) < 0) {
       this.observers.push(observer);
@@ -90,6 +100,8 @@ class Observer {
     if (this.dirty) {
       this.newVal = this.getTempResult().value;
       this.observers.forEach(observerAddToQueue);
+    } else {
+      this.cautionObservers.forEach(observerAddToQueue);
     }
   }
 
@@ -116,6 +128,7 @@ class Observer {
   }
 
   eval(value) {
+    this._evaluating = true;
     this.evalTimes++;
 
     // 是否是外部赋值
@@ -124,14 +137,12 @@ class Observer {
     let _value = assigning ? value : this.compute();
 
     let dirtyCheck, updateValue;
-    let isDiff = !isEqual(this.newVal, _value);
+    let isDiff = assigning || !isEqual(this.newVal, _value);
     this.newVal = _value;
 
     if (assigning) {
       dirtyCheck = true;
-      if (isDiff || !this.isAlive) {
-        updateValue = true;
-      }
+      updateValue = true;
     } else if (isDiff) {
       dirtyCheck = true;
       if (!this.readonly) updateValue = true;
@@ -150,6 +161,7 @@ class Observer {
     if (isDiff) {
       this.observers.forEach(observerAddToQueue);
     }
+    this._evaluating = false;
   }
 
   getTempResult() {
@@ -188,7 +200,7 @@ function consumeObserverQueue(queue) {
  */
 function createComputedObserver(owner, prop, observer) {
   let obj = owner.__computedObservers;
-  let { name, require: req = [], fn } = prop;
+  let { name, require: req = [], fn, caution } = prop;
 
   let _observer = obj[name];
 
@@ -196,6 +208,7 @@ function createComputedObserver(owner, prop, observer) {
     if (fn) {
       _observer.fn = fn;
       _observer.required = req;
+      _observer.caution = caution;
       // 同一个 observer 不应该在 computed 配置中定义多次
       // 如果定义多次，那后者将覆盖前者的依赖关系（但并没有从 observer.observers 将之前已添加的观察删除。）
       for (let i = 0; i < req.length; i++) {
@@ -203,7 +216,7 @@ function createComputedObserver(owner, prop, observer) {
       }
     }
   } else {
-    _observer = obj[name] = new Observer(owner, name, req, fn);
+    _observer = obj[name] = new Observer(owner, name, req, fn, caution);
     if (!_observer.isRootObserver) {
       let rootObserver = createComputedObserver(owner, {
         name: _observer.rootPath
@@ -218,6 +231,9 @@ function createComputedObserver(owner, prop, observer) {
   if (observer) {
     _observer.addObserver(observer);
     observer.addWatching(_observer);
+    if (observer.caution) {
+      _observer.addDirtyObserver(observer);
+    }
   }
 
   return _observer;
@@ -232,12 +248,13 @@ function formatComputedDefinition(computed) {
     if (isFunction(v)) {
       config.push({ name: k, require: [], fn: v });
     } else if (isObject(v)) {
-      let { require: req, fn } = v;
+      let { require: req, fn, keen } = v;
       if (isFunction(fn)) {
         config.push({
           name: k,
           require: (req || []).map(n => formatPath(n)),
-          fn
+          fn,
+          caution: keen
         });
       }
     }
@@ -289,22 +306,9 @@ function evaluateComputedResult(owner, input) {
   consumeObserverQueue(queue);
 }
 
-function calculateInitialComputedValues(owner) {
-  let { __computedObservers: observers, __computingQueue: queue } = owner;
-
-  let k, observer;
-  for (k in observers) {
-    observer = observers[k];
-    if (!observer.readonly) {
-      observer.addToQueue();
-    }
-  }
-
-  if (queue.length) {
-    consumeObserverQueue(queue);
-  }
-
+function calculateAliveChanges(observers) {
   let data = {};
+  let observer, k;
   for (k in observers) {
     observer = observers[k];
     if (observer.isAlive && observer.changed) {
@@ -312,8 +316,33 @@ function calculateInitialComputedValues(owner) {
     }
     observer.clean();
   }
+  return Object.keys(data).length ? data : null;
+}
 
-  return data;
+function calculateInitialComputedValues(owner) {
+  let {
+    __computedObservers: observers,
+    __computingQueue: queue,
+    __tempComputedResult: result
+  } = owner;
+
+  Object.assign(result, owner.data);
+
+  let k, observer;
+  for (k in observers) {
+    observer = observers[k];
+    if (observer.readonly) {
+      observer.eval();
+    } else {
+      observer.watchings.forEach(observerAddToQueue);
+      observer.addToQueue();
+    }
+  }
+
+  if (queue.length) {
+    consumeObserverQueue(queue);
+    return calculateAliveChanges(observers);
+  }
 }
 
 export {

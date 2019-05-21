@@ -2,7 +2,7 @@
  * @Author: laixi
  * @Date: 2018-10-21 21:49:26
  * @Last Modified by: Xavier Yin
- * @Last Modified time: 2019-05-09 18:24:38
+ * @Last Modified time: 2019-05-20 17:42:52
  */
 import { initiallyCompute } from "./computed";
 import setDataApi from "./setDataApi";
@@ -14,7 +14,7 @@ import { initializeWatchers } from "./watch";
  * @param {object} props 构造配置中的 properties 属性值
  */
 function initializeProperties(props) {
-  for (var name in props) {
+  for (let name in props) {
     let prop = props[name];
     // 如果构造配置中使用 `{propName<string>: constructor<function>}` 格式来定义 prop，
     // 那么将它转换为 `{prop<string>: config<object>}` 格式
