@@ -2,12 +2,15 @@
  * @Author: laixi
  * @Date: 2018-10-21 21:27:48
  * @Last Modified by: Xavier Yin
- * @Last Modified time: 2019-04-24 14:40:02
+ * @Last Modified time: 2019-05-21 14:01:19
  */
-import { initializeComputed, evaluateComputed } from "./computed";
+import {
+  constructComputedFeature,
+  calculateInitialComputedValues
+} from "./computed";
 import setDataApi from "./setDataApi";
 import { isFunction } from "./utils";
-import { initializeWatchers } from "./watch";
+import { constructWatchFeature } from "./watch";
 
 /**
  * 封装页面构造函数
@@ -22,10 +25,8 @@ export function patchPage(Page, options) {
   // 封装页面构造函数
   let constructor = function(obj) {
     obj = Object.assign({}, obj);
-    // 初始化计算属性规则
-    obj.__computed = initializeComputed(obj.computed || {});
 
-    let { onLoad, watch } = obj;
+    let { onLoad, watch, computed } = obj;
 
     // 封装 onLoad 钩子
     obj.onLoad = function(queries) {
@@ -35,11 +36,16 @@ export function patchPage(Page, options) {
         this.$setData = this.updateData = function(data, cb) {
           return setDataApi(data, cb, { ctx: this });
         };
-        // 初始化 computed 值
-        let computedResult = evaluateComputed(this, null, { initial: true });
-        this.__setData(computedResult);
+
+        // 赋予计算能力
+        constructComputedFeature(this, computed);
+
+        let values = calculateInitialComputedValues(this);
+        if (values) this.__setData(values);
+
         // 初始化 watch 规则
-        this.__watch = initializeWatchers(this, watch || {});
+        constructWatchFeature(this, watch || {}, this.data);
+
         try {
           // 小程序 2.2.3 版本以后，覆写原始 setData 方法
           if (!isSetDataReadOnly) {

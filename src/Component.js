@@ -2,12 +2,15 @@
  * @Author: laixi
  * @Date: 2018-10-21 21:49:26
  * @Last Modified by: Xavier Yin
- * @Last Modified time: 2019-05-09 15:56:53
+ * @Last Modified time: 2019-05-21 13:55:46
  */
-import { initializeComputed, evaluateComputed } from "./computed";
+import {
+  calculateInitialComputedValues,
+  constructComputedFeature
+} from "./computed";
 import setDataApi from "./setDataApi";
 import { isFunction, isObject } from "./utils";
-import checkWatchers, { initializeWatchers } from "./watch";
+import { constructWatchFeature } from "./watch";
 
 /**
  * 封装（重新定义）构造配置中的 properties 属性。
@@ -25,14 +28,10 @@ function initializeProperties(props) {
 
     // 重新定义 prop 配置中的 observer 值
     prop.observer = function(newVal, oldVal, changedPath) {
-      // 计算当前组件/页面的 prop 的变化是否引起了 computed 值变化
-      let computed = evaluateComputed(this, { [name]: newVal });
-      if (Object.keys(computed).length) {
-        // 如果 computed 属性发生变化，则重新设置相关属性值。
-        this.$setData(computed);
+      // 如果未初始化计算能力，则不调用
+      if (this.$setData && this.$setData.__attached) {
+        this.$setData({ [name]: newVal });
       }
-      // 触发观察函数调用(the handler will be called in asynchronous way)
-      checkWatchers(this, { [name]: newVal });
       // 如果 prop 中定义了 observer 函数，则触发该函数调用。
       if (isFunction(observer))
         observer.call(this, newVal, oldVal, changedPath);
@@ -60,7 +59,7 @@ export function patchComponent(Component, options) {
     obj = Object.assign({}, obj);
     obj.properties = initializeProperties(obj.properties || {});
 
-    let { attached, created, watch, lifetimes } = obj;
+    let { attached, created, watch, lifetimes, computed } = obj;
 
     // 小程序组件配置 lifetimes 中如果定义了生命钩子，将被优先使用。
     if (isObject(lifetimes)) {
@@ -98,6 +97,9 @@ export function patchComponent(Component, options) {
         };
       }
 
+      // 赋予计算能力
+      constructComputedFeature(this, computed);
+
       // 如果定义了函数 created 钩子，才执行（小程序原生行为并未检查 created 钩子合法性，如果定义了非函数钩子，则直接报错）
       if (isFunction(created)) created.apply(this, arguments);
     };
@@ -115,13 +117,11 @@ export function patchComponent(Component, options) {
         // 用来标识这个 $setData 不是 created 钩子中的临时方法。
         this.$setData.__attached = true;
 
-        // 初始化计算属性的配置
-        this.__computed = initializeComputed(obj.computed || {});
-        // 初始化 computed 各个属性值
-        let computedResult = evaluateComputed(this, null, { initial: true });
-        this.__setData(computedResult);
+        let values = calculateInitialComputedValues(this);
+        if (values) this.__setData(values);
+
         // 初始化 watch 配置
-        this.__watch = initializeWatchers(this, watch || {});
+        constructWatchFeature(this, watch || {}, this.data);
 
         try {
           // 小程序 2.2.3 版本以后，覆写 `this.setData` 方法。

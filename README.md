@@ -4,7 +4,7 @@
 
 # 小程序示例片段
 
-示例代码片段：[https://developers.weixin.qq.com/s/GZMoFemN7h86](https://developers.weixin.qq.com/s/GZMoFemN7h86)
+示例代码片段：[https://developers.weixin.qq.com/s/zuO6Tymg708T](https://developers.weixin.qq.com/s/zuO6Tymg708T)
 
 > 示例代码目录：`./miniprogramapp`
 
@@ -20,7 +20,7 @@ npm install --save miniprogrampatch
 
 # 用法
 
-> 以下示例假定 miniprogrampatch.js 文件放置于项目根目录，示例代码参见[miniprogramapp](https://developers.weixin.qq.com/s/GZMoFemN7h86)。
+> 以下示例假定 miniprogrampatch.js 文件放置于项目根目录，示例代码参见[miniprogramapp](https://developers.weixin.qq.com/s/zuO6Tymg708T)。
 
 ## 全局补丁
 
@@ -146,6 +146,12 @@ Page({
 ```
 
 `computed` 中的 `key:value`，如果 `value` 为函数，则表示该属性没有依赖其他属性，只在初始化时计算一次。如果 `value` 为对象，且在 `require` 字段中声明了依赖属性名称，则在相应的依赖属性发生变化后，该计算属性值会被重新计算。
+
+标准的单个计算属性的配置项：
+
+- `require`(可选) 数组，包含当前计算属性所依赖的其他属性名称（包括路径表达式）。
+- `fn`（必选）函数，它接受一个对象作为参数，该参数对象为当前计算属性所有依赖属性名称与值。
+- `keen`（可选）布尔，默认值为`false`。如果该参数为 `true`，则表示当前计算属性处于敏锐观察模式，当前属性所依赖的属性有任何操作都将重新计算当前属性值。参见[关于 computed 敏锐模式](./docs/about_keen.md)
 
 ## 方法
 

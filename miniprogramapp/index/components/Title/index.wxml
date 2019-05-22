@@ -1,2 +1,0 @@
-<!--index/components/Title/index.wxml-->
-<text class="title">Title Component "total": {{total}}</text>

@@ -1,14 +1,112 @@
-.intro {
-  margin: 10rpx 50rpx;
-  font-size: 32rpx;
+page {
+  font-size: 24rpx;
 }
 
-.title {
-  margin: 10rpx 50rpx;
-  font-size: 48rpx;
+.page__locale {
+  display: flex;
+  justify-content: space-around;
+  margin: 0 0 10rpx;
+}
+
+.page__locale-left {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.page__locale-city {
+  font-size: 40rpx;
+  font-weight: bolder;
+}
+
+.page__locale-date {
+  font-size: 36rpx;
+  font-weight: bolder;
+  color: #aaa;
+}
+
+.page__locale-clock {
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  font-size: 80rpx;
+  font-weight: bolder;
+}
+
+.page__speed {
+  display: flex;
+  width: 100%;
+  margin: 20rpx 0;
+  padding: 0;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  align-self: center;
+}
+
+.page__speed-label {
+  font-size: 28rpx;
+  margin-bottom: 20rpx;
+}
+
+.page__speed-container {
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+
+.page__speed-slider {
+  flex: 1;
+  margin: 0 20rpx;
+}
+
+.page__reset-btn {
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  width: 100rpx;
+  height: 50rpx;
+  font-size: 24rpx;
+  margin: 0 10rpx 0 0;
+  padding: 0;
+}
+
+.page__world-clock,
+.page__logs-title {
+  font-size: 40rpx;
   font-weight: bold;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin: 15rpx;
 }
 
-.red {
+.clock__container {
+  display: flex;
+  justify-content: space-between;
+  flex-direction: row;
+  padding: 10rpx;
+  flex-wrap: wrap;
+}
+
+.page__logs {
+  margin: 20rpx 10rpx;
+}
+
+.page__logs-label {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-size: 28rpx;
+  margin-bottom: 20rpx;
+}
+
+.page__log {
+  font-size: 32rpx;
+  margin: 20rpx;
+}
+
+.page__log_red {
   color: red;
 }

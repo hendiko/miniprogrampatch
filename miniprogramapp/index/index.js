@@ -1,126 +1,194 @@
-const app = getApp()
+// timefly/index.js
 
-// 局部增强
+const doubleDigits = number => (number < 10 ? "0" + number : number);
+
 Page({
+  computed: {
+    "clock.Bangkok": {
+      require: ["clock.Tokyo.time"],
+      fn({ "clock.Tokyo.time": clock }) {
+        let ms = (clock || 0) - 3600 * 1000 * 2;
+        return {
+          city: "曼谷",
+          time: ms
+        };
+      }
+    },
+
+    "clock.Beijing": {
+      require: ["currentTime"],
+      fn({ currentTime }) {
+        return {
+          city: "北京",
+          time: currentTime
+        };
+      }
+    },
+
+    "clock.Paris": {
+      require: ["clock"],
+      fn({ clock }) {
+        let { Bangkok } = clock || {};
+        let { time = 0 } = Bangkok || {};
+        return {
+          city: "巴黎",
+          time: time - 3600 * 1000 * 5
+        };
+      },
+      keen: true // 这里需要 keen 为 true，因为 clock 始终没有都是同一个 Object。
+    },
+
+    "clock.Tokyo": {
+      require: ["clock.Beijing.time"],
+      fn({ "clock.Beijing.time": clock }) {
+        let ms = (clock || 0) + 3600 * 1000;
+        return {
+          city: "东京",
+          time: ms
+        };
+      }
+    },
+
+    /** 按时区排序的时钟 */
+    clocks: {
+      require: ["clock"],
+      fn({ clock }) {
+        let values = [];
+        for (var k in clock) {
+          values.push(clock[k]);
+        }
+        values.sort((x, y) => (x.time > y.time ? 1 : -1));
+        return values;
+      },
+      keen: true // 这里需要 keen 为 true，因为 clock 始终没有都是同一个 Object。
+    },
+
+    // 日志数量
+    logNumber: {
+      require: ["logs"],
+      fn({ logs }) {
+        return logs.length;
+      },
+      keen: true // 如果为 false，则 logNumber 一直为 0。
+    },
+
+    normalDate: {
+      require: ["normalTime"],
+      fn({ normalTime }) {
+        let date = new Date(normalTime);
+        return {
+          year: date.getFullYear(),
+          month: doubleDigits(date.getMonth() + 1),
+          date: doubleDigits(date.getDate()),
+          hours: doubleDigits(date.getHours()),
+          minutes: doubleDigits(date.getMinutes()),
+          seconds: doubleDigits(date.getSeconds())
+        };
+      }
+    },
+
+    pageTitle: {
+      require: ["speed"],
+      fn({ speed }) {
+        if (speed > 1) {
+          return "时间加速中";
+        } else {
+          return "正常时间";
+        }
+      }
+    },
+
+    speedPiece: {
+      require: ["speed"],
+      fn({ speed }) {
+        return ~~(1000 / speed);
+      }
+    }
+  },
+
+  /**
+   * 页面的初始数据
+   */
+  data: {
+    clock: {},
+    currentTime: Date.now(),
+    logs: [],
+    showLogs: 5, // 显示多少条日志
+    normalTime: Date.now(),
+    speed: 1,
+    startTime: Date.now()
+  },
 
   watch: {
-
-    'x.y.z': function (value, old) {
-      console.log('x.y.z', value === old, value, old); // x.y.z false
+    pageTitle(val) {
+      wx.setNavigationBarTitle({ title: val });
     },
 
-    'x.y': function (value, old) {
-      console.log('x.y', value === old);  // x.y true
-    },
-
-    'x': function (value, old) {
-      console.log('x', value === old); // x true
-    },
-
-    /** 观察日志变化 */
-    logs(value, old) {
-      // 因为此处通过 this.$setData({"logs[n]": value}) 来更新数据
-      // 因此 logs 属性数组内数据发生变化，但数组本身没有被变更。
-      console.log('logs', value === old);  // print: logs true
-    },
-
-    /** 观察 total 属性 */
-    total(value, old) {
-      let log = `total: new ${value} vs old ${old}`;
-      let { logs } = this.data;
-      let name = `logs[${logs.length}]`;
-      this.$setData({ [name]: log });
-      if (value > 2500) {
-        this.stop();
-      }
+    speed(val) {
+      this.writeLog(val);
     }
   },
 
-  computed: {
-    /** 页面加载的时间戳（不依赖其他属性） */
-    timestamp() {
-      return Date.now();
-    },
-
-    /** count 乘以 10 */
-    countByTen: {
-      require: ['count'],
-      fn({ count }) {
-        return count * 10
-      }
-    },
-
-    /** count 乘以 100 */
-    countByHundred: {
-      require: ['countByTen'],
-      fn({ countByTen }) {
-        return countByTen * 10;
-      }
-    },
-
-    /** 总数 */
-    total: {
-      require: ['count', 'countByTen', 'countByHundred'],
-      fn({ count, countByTen, countByHundred }) {
-        return count + countByTen + countByHundred;
-      }
-    },
-
-    /** 返回 total 的第三条更新日志 */
-    thirdLog: {
-      require: ['logs[2]'],
-      fn({ "logs[2]": x }) {
-        return x;
-      }
-    },
-
-    'x.y.z': {
-      require: ['total'],
-      fn({ total }) {
-        return total;
-      }
-    },
-
-    firstOne: {
-      require: ['res.list'],
-      fn({'res.list': list}) {
-        let first = (list || [])[0];
-        return first || null;
-      }
-    }
+  /**
+   * 生命周期函数--监听页面初次渲染完成
+   */
+  onReady() {
+    let { pageTitle } = this.data;
+    wx.setNavigationBarTitle({ title: pageTitle });
+    this.startTiktok();
   },
 
-
-  data: {
-    res: {
-      list: []
-    },
-    count: 10,
-    logs: []   // total 属性的更新日志
-  },
-
-  /** 开启定时器 */
-  onLoad: function () {
-    app.home = this;
-    this.start();
-  },
-
-  /** 每秒钟 count 属性加 1 */
-  start() {
-    this.stop();
-    this.timer = setInterval(() => {
-      let { count } = this.data;
-      this.$setData({ count: count + 1 })
-    }, 1000)
-  },
-
-  /** 停止 count 属性自增 */
-  stop() {
-    clearInterval(this.timer);
-  },
-
-  /** 销毁定时器 */
+  /**
+   * 生命周期函数--监听页面卸载
+   */
   onUnload() {
-    this.stop();
+    this.stopTiktok();
+  },
+
+  /**
+   * 页面相关事件处理函数--监听用户下拉动作
+   */
+  onPullDownRefresh() {
+    this.reset();
+    wx.stopPullDownRefresh();
+  },
+
+  onSliderChange(e) {
+    let { value } = e.detail;
+    this.$setData({ speed: value });
+    this.startTiktok();
+  },
+
+  elapse() {
+    let { currentTime } = this.data;
+    this.$setData({
+      currentTime: currentTime + 1000,
+      normalTime: Date.now()
+    });
+  },
+
+  reset() {
+    let now = Date.now();
+    this.$setData({ speed: 1, currentTime: now, normalTime: now });
+    this.startTiktok();
+    this.writeLog(this.data.speed, true);
+  },
+
+  startTiktok() {
+    this.stopTiktok();
+    let { speedPiece } = this.data;
+    this._timer = setInterval(this.elapse.bind(this), speedPiece);
+  },
+
+  stopTiktok() {
+    clearTimeout(this._timer);
+  },
+
+  writeLog(speed, reset = false) {
+    let { logNumber, normalDate: d } = this.data;
+    let log = reset ? "恢复正常速度。" : `调整时间流逝速度为 ${speed}x。`;
+    this.$setData({
+      [`logs[${logNumber}]`]: `${d.hours}:${d.minutes}:${d.seconds} ${log}`
+    });
   }
-})
+});

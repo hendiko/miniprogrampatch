@@ -1,0 +1,7 @@
+<view class="clock__root">
+  <view class="clock__city">{{city}}</view>
+  <view class="clock__wrap">
+    <view class="clock__date">{{hms.year}}/{{hms.month}}/{{hms.date}}</view>
+    <view class="clock__time">{{hms.hours}}:{{hms.minutes}}:{{hms.seconds}}</view>
+  </view>
+</view>
