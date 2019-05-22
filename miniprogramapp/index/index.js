@@ -35,7 +35,7 @@ Page({
           time: time - 3600 * 1000 * 5
         };
       },
-      keen: true
+      keen: true // 这里需要 keen 为 true，因为 clock 始终没有都是同一个 Object。
     },
 
     "clock.Tokyo": {
@@ -60,7 +60,7 @@ Page({
         values.sort((x, y) => (x.time > y.time ? 1 : -1));
         return values;
       },
-      keen: true
+      keen: true // 这里需要 keen 为 true，因为 clock 始终没有都是同一个 Object。
     },
 
     // 日志数量
