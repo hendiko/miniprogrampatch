@@ -1,13 +1,31 @@
-<view class="intro">页面打开时间: {{startTimeText}}</view>
-<view class="intro">x = count = {{count}}</view>
-<view class="intro">y = count * 10 = {{countByTen}}</view>
-<view class="intro">z = count * 100 = {{countByHundred}}</view>
-<view class="intro">total = x + y + z = {{total}}</view>
-<view class="intro" wx:for="{{clocks}}" wx:key="city">{{item.city}}时间：{{item.locale}}</view>
-<view class="title">显示最后{{numberOfLogs}}条日志:</view>
-<block wx:for="{{logs}}" wx:key="index">
-    <view wx:if="{{index + numberOfLogs >= logs.length}}" class="intro {{index % 2 === 0 ? 'red' : ''}}">
-        {{index+1}}. {{item}}
+<view class="page__locale">
+  <view class="page__locale-left">
+    <view class="page__locale-city">当前时间</view>
+    <view class="page__locale-date">
+      {{normalDate.year}}/{{normalDate.month}}/{{normalDate.date}}
     </view>
-</block>
-<title total="{{total}}" ></title>
+  </view>
+  <view class="page__locale-clock">
+    {{normalDate.hours}}:{{normalDate.minutes}}:{{normalDate.seconds}}
+  </view>
+</view>
+<view class="page__world-clock">世界时钟</view>
+<view class="page__speed">
+  <view class="page__speed-label">拖动调整世界时钟</view>
+  <view class="page__speed-container">
+    <slider class="page__speed-slider" block-size="18" min="1" max="50" bindchange="onSliderChange" bindchanging="onSliderChange" show-value="{{true}}" value="{{speed}}"></slider>
+    <button class="page__reset-btn" catchtap="reset">恢复</button>
+  </view>
+</view>
+<view class="clock__container">
+  <clock wx:for="{{clocks}}" wx:key="city" data="{{item}}"></clock>
+</view>
+<view class="page__logs">
+  <view class="page__logs-title">操作日志</view>
+  <view class="page__logs-label">共 {{logNumber}} 条，显示最近 {{showLogs}} 条</view>
+  <block wx:for="{{logs}}" wx:key="index">
+    <view wx:if="{{index + showLogs >= logNumber}}" class="page__log {{index % 2 ? 'page__log_red' : ''}}">
+      {{index + 1}}. {{item}}
+    </view>
+  </block>
+</view>

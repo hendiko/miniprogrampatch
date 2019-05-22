@@ -2,7 +2,7 @@
  * @Author: Xavier Yin
  * @Date: 2019-05-07 14:32:08
  * @Last Modified by: Xavier Yin
- * @Last Modified time: 2019-05-07 15:09:35
+ * @Last Modified time: 2019-05-21 13:53:53
  */
 
 /**
@@ -22,4 +22,4 @@ class MiniprogrampatchError extends Error {
   }
 }
 
-export { MiniprogrampatchError };
+export default MiniprogrampatchError;

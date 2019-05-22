@@ -1,0 +1,33 @@
+.clock__root {
+  display: inline-flex;
+  justify-content: space-around;
+  align-items: center;
+  width: 350rpx;
+  border-radius: 10rpx;
+  margin: 10rpx 0;
+  height: 150rpx;
+  box-shadow: 0 4px 4px 0 rgba(0, 0, 0, 0.2), 0 6px 6px 0 rgba(0, 0, 0, 0.19);
+}
+
+.clock__city {
+  font-size: 40rpx;
+  font-weight: bold;
+}
+
+.clock__wrap {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-direction: column;
+}
+
+.clock__date {
+  font-size: 32rpx;
+  font-weight: bold;
+  color: #aaa;
+}
+
+.clock__time {
+  font-size: 40rpx;
+  font-weight: bold;
+}
