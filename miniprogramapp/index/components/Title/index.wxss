@@ -1,5 +1,0 @@
-/* index/components/Title/index.wxss */
-.title {
-  font-size: 36rpx;
-  margin: 10rpx 50rpx;
-}

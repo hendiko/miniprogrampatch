@@ -1,5 +1,4 @@
 {
-  "usingComponents": {
-    "title": "./components/Title/index"
-  }
+  "usingComponents": { "clock": "./Clock/index" },
+  "enablePullDownRefresh": false
 }

@@ -2,9 +2,9 @@
  * @Author: Xavier Yin
  * @Date: 2019-05-06 15:58:50
  * @Last Modified by: Xavier Yin
- * @Last Modified time: 2019-05-07 15:05:47
+ * @Last Modified time: 2019-05-21 16:49:15
  */
-import parsePath, { formatPath } from "../src/v120/parsePath";
+import parsePath, { formatPath } from "../src/parsePath";
 
 // 小程序调试基础库 v2.6.1 解析规则
 describe("Test parsePath", () => {
@@ -33,6 +33,7 @@ describe("Test parsePath", () => {
   it("These are invalid path expressions.", () => {
     // 这些路径都是非法的
     let paths = [
+      "",
       "[1]x",
       "x]][0]",
       "x[a]",

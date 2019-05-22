@@ -2,9 +2,9 @@
  * @Author: Xavier Yin
  * @Date: 2019-05-06 16:49:31
  * @Last Modified by: Xavier Yin
- * @Last Modified time: 2019-05-07 12:09:11
+ * @Last Modified time: 2019-05-21 13:49:52
  */
-import { getValueOfPath, setValueOfPath } from "../src/v120/evalPath";
+import { getValueOfPath, setValueOfPath } from "../src/evalPath";
 
 describe("Test evalPath", () => {
   let foo;

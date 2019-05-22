@@ -1,2 +1,0 @@
-<!-- index/components/Title/index.wxml -->
-<text class="title">{{text}}</text>

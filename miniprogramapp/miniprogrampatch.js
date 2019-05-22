@@ -1,4 +1,4 @@
-// miniprogrampatch v1.2.0 Tue May 21 2019  
+// miniprogrampatch v1.2.0 Wed May 22 2019  
 (function webpackUniversalModuleDefinition(root, factory) {
 	if(typeof exports === 'object' && typeof module === 'object')
 		module.exports = factory();
@@ -148,7 +148,7 @@ function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { de
  * @Author: laixi
  * @Date: 2018-10-21 21:27:48
  * @Last Modified by: Xavier Yin
- * @Last Modified time: 2019-05-21 09:37:41
+ * @Last Modified time: 2019-05-21 14:01:19
  */
 function patchPage(Page, options) {
   if (Page.__patchPage) return Page;
@@ -178,6 +178,7 @@ function patchPage(Page, options) {
           return (0, _setDataApi2.default)(data, cb, { ctx: this });
         };
 
+        // 赋予计算能力
         (0, _computed.constructComputedFeature)(this, computed);
 
         var values = (0, _computed.calculateInitialComputedValues)(this);
@@ -223,7 +224,7 @@ var _createClass = function () { function defineProperties(target, props) { for 
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       * @Author: Xavier Yin
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       * @Date: 2019-05-09 14:08:48
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       * @Last Modified by: Xavier Yin
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      * @Last Modified time: 2019-05-21 11:07:55
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      * @Last Modified time: 2019-05-21 14:14:27
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       */
 
 var _parsePath = __webpack_require__(3);
@@ -233,6 +234,8 @@ var _parsePath2 = _interopRequireDefault(_parsePath);
 var _evalPath = __webpack_require__(5);
 
 var _error = __webpack_require__(4);
+
+var _error2 = _interopRequireDefault(_error);
 
 var _utils = __webpack_require__(6);
 
@@ -246,15 +249,19 @@ var observerAddToQueue = function observerAddToQueue(observer) {
   return !observer._evaluating && observer.addToQueue();
 };
 
+/**
+ * 路径观察者
+ */
+
 var Observer = function () {
-  function Observer(owner, name, required, fn, caution) {
+  function Observer(owner, name, required, fn, keen) {
     _classCallCheck(this, Observer);
 
     this.owner = owner;
     this.name = name;
     this.required = required || [];
     this.fn = fn;
-    this.caution = !!caution;
+    this.keen = !!keen;
 
     this.oldVal = this.newVal = void 0;
 
@@ -263,11 +270,11 @@ var Observer = function () {
     this.rootPath = sections[0].key;
     this.isRootObserver = sections.length === 1;
 
-    this.observers = [];
-    this.watchings = [];
-    this.children = [];
+    this.observers = []; // 所有观察了本实例的观察者集合
+    this.watchings = []; // 正在被本实例观察的观察者集合
+    this.children = []; // 只有根节点有效，包含根节点所有观察者
 
-    this.cautionObservers = [];
+    this.keenObservers = []; // 脏状态检查敏感观察者集合
 
     this.evalTimes = 0;
   }
@@ -281,10 +288,10 @@ var Observer = function () {
   };
 
   Observer.prototype.addDirtyObserver = function addDirtyObserver(observer) {
-    if (this.cautionObservers.findIndex(function (item) {
+    if (this.keenObservers.findIndex(function (item) {
       return item === observer;
     }) < 0) {
-      this.cautionObservers.push(observer);
+      this.keenObservers.push(observer);
     }
   };
 
@@ -321,7 +328,7 @@ var Observer = function () {
       this.newVal = this.getTempResult().value;
       this.observers.forEach(observerAddToQueue);
     } else {
-      this.cautionObservers.forEach(observerAddToQueue);
+      this.keenObservers.forEach(observerAddToQueue);
     }
   };
 
@@ -332,6 +339,9 @@ var Observer = function () {
       this.fn = null;
     }
   };
+
+  /** 计算出属性值 */
+
 
   Observer.prototype.compute = function compute() {
     if (this.readonly) {
@@ -346,6 +356,11 @@ var Observer = function () {
       return this.fn.call(this.owner, args);
     }
   };
+
+  /**
+   * 如果给定 value 参数，表示从外部直接对本属性赋值
+   */
+
 
   Observer.prototype.eval = function _eval(value) {
     this._evaluating = true;
@@ -388,6 +403,9 @@ var Observer = function () {
   Observer.prototype.getTempResult = function getTempResult() {
     return (0, _evalPath.getValueOfPath)(this.owner.__tempComputedResult, this.name);
   };
+
+  /** 触发同根观察者进行脏数据检查 */
+
 
   Observer.prototype.triggerRootObserverChildrenDirtyCheck = function triggerRootObserverChildrenDirtyCheck() {
     if (!this.isRootObserver) {
@@ -443,7 +461,7 @@ function consumeObserverQueue(queue) {
   while (queue.length) {
     queue.shift().eval();
     if (++i > MAX_ROUNDS_OF_CONSUMPTION) {
-      throw new _error.MiniprogrampatchError("The computing calls exceed " + MAX_ROUNDS_OF_CONSUMPTION + ".");
+      throw new _error2.default("The computing calls exceed " + MAX_ROUNDS_OF_CONSUMPTION + ".");
     }
   }
 }
@@ -457,7 +475,7 @@ function createComputedObserver(owner, prop, observer) {
       _prop$require = prop.require,
       req = _prop$require === undefined ? [] : _prop$require,
       fn = prop.fn,
-      caution = prop.caution;
+      keen = prop.keen;
 
 
   var _observer = obj[name];
@@ -466,7 +484,7 @@ function createComputedObserver(owner, prop, observer) {
     if (fn) {
       _observer.fn = fn;
       _observer.required = req;
-      _observer.caution = caution;
+      _observer.keen = keen;
       // 同一个 observer 不应该在 computed 配置中定义多次
       // 如果定义多次，那后者将覆盖前者的依赖关系（但并没有从 observer.observers 将之前已添加的观察删除。）
       for (var i = 0; i < req.length; i++) {
@@ -474,7 +492,7 @@ function createComputedObserver(owner, prop, observer) {
       }
     }
   } else {
-    _observer = obj[name] = new Observer(owner, name, req, fn, caution);
+    _observer = obj[name] = new Observer(owner, name, req, fn, keen);
     if (!_observer.isRootObserver) {
       var rootObserver = createComputedObserver(owner, {
         name: _observer.rootPath
@@ -489,7 +507,7 @@ function createComputedObserver(owner, prop, observer) {
   if (observer) {
     _observer.addObserver(observer);
     observer.addWatching(_observer);
-    if (observer.caution) {
+    if (observer.keen) {
       _observer.addDirtyObserver(observer);
     }
   }
@@ -519,7 +537,7 @@ function formatComputedDefinition(computed) {
             return (0, _parsePath.formatPath)(n);
           }),
           fn: fn,
-          caution: keen
+          keen: keen
         });
       }
     }
@@ -541,6 +559,7 @@ function constructComputedFeature(owner, computedDefinition) {
   return owner;
 }
 
+// 根据输入项 input 推演计算属性结果
 function evaluateComputedResult(owner, input) {
   var observers = owner.__computedObservers,
       queue = owner.__computingQueue,
@@ -584,6 +603,7 @@ function calculateAliveChanges(observers) {
   return Object.keys(data).length ? data : null;
 }
 
+/** 计算初始的计算属性值 */
 function calculateInitialComputedValues(owner) {
   var observers = owner.__computedObservers,
       queue = owner.__computingQueue,
@@ -624,11 +644,13 @@ exports.evaluateComputedResult = evaluateComputedResult;
 exports.__esModule = true;
 exports.compactPath = exports.composePath = undefined;
 exports.default = parsePath;
-exports.isSameRootOfPath = isSameRootOfPath;
-exports.pathToArray = pathToArray;
 exports.formatPath = formatPath;
 
 var _error = __webpack_require__(4);
+
+var _error2 = _interopRequireDefault(_error);
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
 /** 解析路径异常 */
 function ParseError(type, pathstr) {
@@ -640,10 +662,13 @@ function ParseError(type, pathstr) {
     case 1:
       msg = "The path string should not start with []";
       break;
+    case 2:
+      msg = "The path string should not be empty";
+      break;
     default:
       msg = "Unknown error occurred when parsing path";
   }
-  return new _error.MiniprogrampatchError(msg + ": " + pathstr);
+  return new _error2.default(msg + ": " + pathstr);
 }
 
 /**
@@ -654,7 +679,7 @@ function ParseError(type, pathstr) {
  * @Author: Xavier Yin
  * @Date: 2019-04-28 15:43:34
  * @Last Modified by: Xavier Yin
- * @Last Modified time: 2019-05-07 14:39:22
+ * @Last Modified time: 2019-05-21 16:49:07
  *
  * 解析小程序 data 以路径作为属性名
  */
@@ -682,6 +707,13 @@ var check3 = function check3(path) {
  */
 var check4 = function check4(path) {
   return !/\[\]/.test(path);
+};
+
+/**
+ * path 不能为空字符串
+ */
+var check5 = function check5(path) {
+  return path !== "";
 };
 
 /**
@@ -730,10 +762,10 @@ function preprocessPath(path) {
     return fn(path);
   }, path);
 
-  var checkers = [check1, check2, check3, check4];
+  var checkers = [check1, check2, check3, check4, check5];
   for (var i = 0; i < checkers.length; i++) {
     if (!checkers[i](path)) {
-      throw ParseError(i === 1 ? 1 : 0, path);
+      throw ParseError(i === 4 ? 2 : i === 1 ? 1 : 0, path);
     }
   }
 
@@ -838,28 +870,6 @@ var compactPath = exports.compactPath = function compactPath(path) {
 };
 
 /**
- * 比较两个路径是否具有相同的根节点
- * @param {string} path1 参照路径
- * @param {string} path2 对比路径
- */
-function isSameRootOfPath(path1, path2) {
-  return parsePath(path1)[0].key === parsePath(path2)[0].key;
-}
-
-/**
- * 将路径分解为节点名称组成的数组
- *
- * @example
- * `pathToArray("x[1]y.z")` 返回 `["x", 1, "y", "z"]`
- * @param {string} path 路径
- */
-function pathToArray(path) {
-  return parsePath(path).map(function (section) {
-    return section.key;
-  });
-}
-
-/**
  * 格式化路径，转换为标准的简洁路径
  */
 function formatPath(path) {
@@ -885,7 +895,7 @@ function _inherits(subClass, superClass) { if (typeof superClass !== "function" 
  * @Author: Xavier Yin
  * @Date: 2019-05-07 14:32:08
  * @Last Modified by: Xavier Yin
- * @Last Modified time: 2019-05-07 15:09:35
+ * @Last Modified time: 2019-05-21 13:53:53
  */
 
 /**
@@ -917,7 +927,7 @@ var MiniprogrampatchError = function (_Error) {
   return MiniprogrampatchError;
 }(Error);
 
-exports.MiniprogrampatchError = MiniprogrampatchError;
+exports.default = MiniprogrampatchError;
 
 /***/ }),
 /* 5 */
@@ -1016,12 +1026,11 @@ exports.__esModule = true;
 
 var _typeof = typeof Symbol === "function" && typeof Symbol.iterator === "symbol" ? function (obj) { return typeof obj; } : function (obj) { return obj && typeof Symbol === "function" && obj.constructor === Symbol && obj !== Symbol.prototype ? "symbol" : typeof obj; };
 
-exports.hasIntersection = hasIntersection;
 /*
  * @Author: laixi
  * @Date: 2018-10-20 13:17:17
  * @Last Modified by: Xavier Yin
- * @Last Modified time: 2019-05-21 09:17:46
+ * @Last Modified time: 2019-05-21 13:58:53
  */
 var isObject = exports.isObject = function isObject(obj) {
   return obj !== null && "object" === (typeof obj === "undefined" ? "undefined" : _typeof(obj));
@@ -1032,11 +1041,8 @@ var isFunction = exports.isFunction = function isFunction(obj) {
 var isArray = exports.isArray = function isArray(x) {
   return x && x.constructor === Array;
 };
-var trim = exports.trim = function trim(str) {
-  return str.replace(/(^\s+)|(\s+$)/g, "");
-};
 
-var _isNaN = exports._isNaN = function _isNaN(x) {
+var _isNaN = function _isNaN(x) {
   return typeof x === "number" && isNaN(x);
 };
 
@@ -1048,11 +1054,6 @@ var isEqual = exports.isEqual = function isEqual(x, y) {
   }
 };
 
-// 判断两个嵌套路径之间是否具有交集
-function hasIntersection(obj, target) {
-  return obj[0] === target[0];
-}
-
 /***/ }),
 /* 7 */
 /***/ (function(module, exports, __webpack_require__) {
@@ -1061,7 +1062,6 @@ function hasIntersection(obj, target) {
 
 
 exports.__esModule = true;
-exports.combineData = undefined;
 
 var _computed = __webpack_require__(2);
 
@@ -1073,6 +1073,7 @@ var _utils = __webpack_require__(6);
 
 var _watch = __webpack_require__(8);
 
+// 将计算结果和输入项合并，得出最后发生变化的值
 function combineData(observers) {
   var result = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : {};
   var input = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : {};
@@ -1103,7 +1104,7 @@ function combineData(observers) {
    * @Author: Xavier Yin
    * @Date: 2019-05-17 16:40:50
    * @Last Modified by: Xavier Yin
-   * @Last Modified time: 2019-05-20 09:30:38
+   * @Last Modified time: 2019-05-21 14:06:39
    */
 
 function formatData(input) {
@@ -1147,7 +1148,6 @@ function setDataApi(data, cb, options) {
   }
 }
 
-exports.combineData = combineData;
 exports.default = setDataApi;
 
 /***/ }),
@@ -1163,6 +1163,12 @@ var _parsePath = __webpack_require__(3);
 
 var _utils = __webpack_require__(6);
 
+/**
+ * 构建观察能力
+ * @param {object} owner page/componnent
+ * @param {object} watchDefinition watch 配置
+ * @param {object} initialData 初始值
+ */
 function constructWatchFeature(owner, watchDefinition, initialData) {
   var watchers = owner.__watchers = {};
   if ((0, _utils.isObject)(watchDefinition)) {
@@ -1180,14 +1186,19 @@ function constructWatchFeature(owner, watchDefinition, initialData) {
       }
     }
   }
-} /*
-   * @Author: Xavier Yin
-   * @Date: 2019-05-17 17:50:14
-   * @Last Modified by: Xavier Yin
-   * @Last Modified time: 2019-05-20 14:03:26
-   */
+}
 
-
+/**
+ * 检查观察属性是否发生变化以便触发事件回调
+ * @param {object} owner page/component
+ * @param  {...any} paths 指定需要检查的路径
+ */
+/*
+ * @Author: Xavier Yin
+ * @Date: 2019-05-17 17:50:14
+ * @Last Modified by: Xavier Yin
+ * @Last Modified time: 2019-05-21 14:04:46
+ */
 function checkWatchers(owner) {
   for (var _len = arguments.length, paths = Array(_len > 1 ? _len - 1 : 0), _key = 1; _key < _len; _key++) {
     paths[_key - 1] = arguments[_key];
@@ -1259,7 +1270,7 @@ function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { de
  * @Author: laixi
  * @Date: 2018-10-21 21:49:26
  * @Last Modified by: Xavier Yin
- * @Last Modified time: 2019-05-21 10:55:25
+ * @Last Modified time: 2019-05-21 13:55:46
  */
 function initializeProperties(props) {
   var _loop = function _loop(name) {
@@ -1280,8 +1291,6 @@ function initializeProperties(props) {
         var _$setData;
 
         this.$setData((_$setData = {}, _$setData[name] = newVal, _$setData));
-        // let result = calculateAfterPropChanged(this, name, newVal);
-        // if (result) setDataApi(result, null, { ctx: this });
       }
       // 如果 prop 中定义了 observer 函数，则触发该函数调用。
       if ((0, _utils.isFunction)(observer)) observer.call(this, newVal, oldVal, changedPath);
@@ -1361,6 +1370,7 @@ function patchComponent(Component, options) {
         };
       }
 
+      // 赋予计算能力
       (0, _computed.constructComputedFeature)(this, computed);
 
       // 如果定义了函数 created 钩子，才执行（小程序原生行为并未检查 created 钩子合法性，如果定义了非函数钩子，则直接报错）

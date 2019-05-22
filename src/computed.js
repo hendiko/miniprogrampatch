@@ -1,166 +1,362 @@
 /*
- * @Author: laixi
- * @Date: 2018-10-20 20:50:50
+ * @Author: Xavier Yin
+ * @Date: 2019-05-09 14:08:48
  * @Last Modified by: Xavier Yin
- * @Last Modified time: 2019-04-30 09:35:35
+ * @Last Modified time: 2019-05-21 14:14:27
  */
 
-import { isObject, isFunction, hasIntersection } from "./utils";
+import parsePath, { compactPath, composePath, formatPath } from "./parsePath";
+import { getValueOfPath, setValueOfPath } from "./evalPath";
+import MiniprogrampatchError from "./error";
+import { isObject, isFunction, isEqual } from "./utils";
 
-import { getValueOfPath } from "./evalPath";
+const MAX_ROUNDS_OF_CONSUMPTION = 100000;
 
-import { pathToArray, isSameRootOfPath } from "./parsePath";
-
-// 判断 m 是否依赖于 n。
-// 如果 m 依赖于 n，则返回 true，否则 false
-function depends(m, n) {
-  let { name } = n;
-  for (var i = 0; i < m.require.length; i++) {
-    // 在 m 的 require 列表中的依赖字段，其中任意一个包含了 n.name；
-    // 则认为 m 依赖于 n。
-    if (isSameRootOfPath(m.require[i], name)) return true;
-  }
-  return false;
-}
+const observerAddToQueue = observer =>
+  !observer._evaluating && observer.addToQueue();
 
 /**
- * 计算依赖优先级
- * @param {array} list 数组成员格式 `{name:string, require:array, fn:function}`
- * @bug
- * 没有解决隐式依赖之间的关系
+ * 路径观察者
  */
-function sortDeps(list) {
-  let sorted = [];
-  let item, isRequired, i, tmp, ii, index;
-  while (list.length) {
-    item = list.pop();
-    isRequired = false;
-    for (i in sorted) {
-      // 检查已排序的属性，是否有隐式依赖于 item
-      // 有的话，则从 sorted 中取出，使用 item 替代它的位置。
-      if (depends(sorted[i], item)) {
-        tmp = sorted.splice(i, sorted.length - i, item);
-        for (ii in item.require) {
-          // 检查剩余的暂存属性，是否有 item 的显式依赖。
-          // 如果有，则取出放回到 list 中。
-          index = tmp.findIndex(x => x.name === item.require[ii]);
-          if (index > -1) {
-            list.push(tmp.splice(index, 1)[0]);
-          }
-        }
-        // 剩下的字段说明没有被 item 显式依赖，可以放回 sorted 并位于 item 之后
-        sorted = sorted.concat(tmp);
-        isRequired = true;
+class Observer {
+  constructor(owner, name, required, fn, keen) {
+    this.owner = owner;
+    this.name = name;
+    this.required = required || [];
+    this.fn = fn;
+    this.keen = !!keen;
 
-        // sorted 有变化，取消继续循环
-        break;
+    this.oldVal = this.newVal = void 0;
+
+    let sections = parsePath(name);
+
+    this.rootPath = sections[0].key;
+    this.isRootObserver = sections.length === 1;
+
+    this.observers = []; // 所有观察了本实例的观察者集合
+    this.watchings = []; // 正在被本实例观察的观察者集合
+    this.children = []; // 只有根节点有效，包含根节点所有观察者
+
+    this.keenObservers = []; // 脏状态检查敏感观察者集合
+
+    this.evalTimes = 0;
+  }
+
+  get changed() {
+    return !isEqual(this.oldVal, this.newVal);
+  }
+
+  get dirty() {
+    return !isEqual(this.newVal, this.getTempResult().value);
+  }
+
+  get isAlive() {
+    return this.getTempResult().key;
+  }
+
+  get once() {
+    return !this.required.length;
+  }
+
+  get readonly() {
+    return !this.fn;
+  }
+
+  get rootObserver() {
+    return this.isRootObserver
+      ? this
+      : this.owner.__computedObservers[this.rootPath];
+  }
+
+  addChildObserver(observer) {
+    if (this.children.findIndex(item => item === observer) < 0) {
+      this.children.push(observer);
+    }
+  }
+
+  addDirtyObserver(observer) {
+    if (this.keenObservers.findIndex(item => item === observer) < 0) {
+      this.keenObservers.push(observer);
+    }
+  }
+
+  addObserver(observer) {
+    if (this.observers.findIndex(item => item === observer) < 0) {
+      this.observers.push(observer);
+    }
+  }
+
+  addToQueue() {
+    let { __computingQueue: queue } = this.owner;
+    if (queue.findIndex(item => item === this) < 0) {
+      queue.push(this);
+    }
+  }
+
+  addWatching(observer) {
+    if (this.watchings.findIndex(item => item === observer) < 0) {
+      this.watchings.push(observer);
+    }
+  }
+
+  checkDirty() {
+    if (this.dirty) {
+      this.newVal = this.getTempResult().value;
+      this.observers.forEach(observerAddToQueue);
+    } else {
+      this.keenObservers.forEach(observerAddToQueue);
+    }
+  }
+
+  clean() {
+    this.evalTimes = 0;
+    this.oldVal = this.newVal = this.getTempResult().value;
+    if (this.once && !this.readonly) {
+      this.fn = null;
+    }
+  }
+
+  /** 计算出属性值 */
+  compute() {
+    if (this.readonly) {
+      return this.getTempResult().value;
+    } else {
+      let args = {};
+      let name;
+      for (let i = 0; i < this.required.length; i++) {
+        name = this.required[i];
+        args[name] = this.owner.__computedObservers[name].newVal;
+      }
+      return this.fn.call(this.owner, args);
+    }
+  }
+
+  /**
+   * 如果给定 value 参数，表示从外部直接对本属性赋值
+   */
+  eval(value) {
+    this._evaluating = true;
+    this.evalTimes++;
+
+    // 是否是外部赋值
+    let assigning = !!arguments.length;
+
+    let _value = assigning ? value : this.compute();
+
+    let dirtyCheck, updateValue;
+    let isDiff = assigning || !isEqual(this.newVal, _value);
+    this.newVal = _value;
+
+    if (assigning) {
+      dirtyCheck = true;
+      updateValue = true;
+    } else if (isDiff) {
+      dirtyCheck = true;
+      if (!this.readonly) updateValue = true;
+    } else if (!this.readonly) {
+      dirtyCheck = true;
+    }
+
+    if (updateValue) {
+      setValueOfPath(this.owner.__tempComputedResult, this.name, _value);
+    }
+
+    if (dirtyCheck) {
+      this.triggerRootObserverChildrenDirtyCheck();
+    }
+
+    if (isDiff) {
+      this.observers.forEach(observerAddToQueue);
+    }
+    this._evaluating = false;
+  }
+
+  getTempResult() {
+    return getValueOfPath(this.owner.__tempComputedResult, this.name);
+  }
+
+  /** 触发同根观察者进行脏数据检查 */
+  triggerRootObserverChildrenDirtyCheck() {
+    if (!this.isRootObserver) {
+      this.rootObserver.checkDirty();
+    }
+
+    let observer;
+    for (let i = 0; i < this.rootObserver.children.length; i++) {
+      observer = this.rootObserver.children[i];
+      if (observer !== this) {
+        observer.checkDirty();
       }
     }
+  }
+}
 
-    // sorted 中没有一个属性依赖于 item，可以安全放入 sorted 中。
-    if (!isRequired) {
-      sorted.push(item);
+function consumeObserverQueue(queue) {
+  let i = 0;
+  while (queue.length) {
+    queue.shift().eval();
+    if (++i > MAX_ROUNDS_OF_CONSUMPTION) {
+      throw new MiniprogrampatchError(
+        `The computing calls exceed ${MAX_ROUNDS_OF_CONSUMPTION}.`
+      );
     }
   }
-  return sorted;
 }
 
 /**
- * 初始化计算属性规则
+ * 创建 Observer
  */
-export function initializeComputed(computed) {
-  let data = [];
-  let key, value;
-  for (key in computed) {
-    value = computed[key];
-    if (isFunction(value)) {
-      data.push({ name: key, require: [], fn: value });
-    } else if (isObject(value)) {
-      let { require = [], fn } = value;
+function createComputedObserver(owner, prop, observer) {
+  let obj = owner.__computedObservers;
+  let { name, require: req = [], fn, keen } = prop;
+
+  let _observer = obj[name];
+
+  if (_observer) {
+    if (fn) {
+      _observer.fn = fn;
+      _observer.required = req;
+      _observer.keen = keen;
+      // 同一个 observer 不应该在 computed 配置中定义多次
+      // 如果定义多次，那后者将覆盖前者的依赖关系（但并没有从 observer.observers 将之前已添加的观察删除。）
+      for (let i = 0; i < req.length; i++) {
+        createComputedObserver(owner, { name: req[i] }, _observer);
+      }
+    }
+  } else {
+    _observer = obj[name] = new Observer(owner, name, req, fn, keen);
+    if (!_observer.isRootObserver) {
+      let rootObserver = createComputedObserver(owner, {
+        name: _observer.rootPath
+      });
+      rootObserver.addChildObserver(_observer);
+    }
+    for (let i = 0; i < req.length; i++) {
+      createComputedObserver(owner, { name: req[i] }, _observer);
+    }
+  }
+
+  if (observer) {
+    _observer.addObserver(observer);
+    observer.addWatching(_observer);
+    if (observer.keen) {
+      _observer.addDirtyObserver(observer);
+    }
+  }
+
+  return _observer;
+}
+
+function formatComputedDefinition(computed) {
+  let config = [];
+  let k, v;
+  for (k in computed) {
+    v = computed[k];
+    k = formatPath(k);
+    if (isFunction(v)) {
+      config.push({ name: k, require: [], fn: v });
+    } else if (isObject(v)) {
+      let { require: req, fn, keen } = v;
       if (isFunction(fn)) {
-        data.push({ name: key, require, fn });
+        config.push({
+          name: k,
+          require: (req || []).map(n => formatPath(n)),
+          fn,
+          keen: keen
+        });
       }
     }
   }
-  if (data.length > 1) {
-    data = sortDeps(data);
-  }
-  return data;
+  return config;
 }
 
-/**
- * 演算计算属性值
- * @param {object} ctx Page/Component 实例
- * @param {object} changed 发生变化的属性键值对
- * @param {object} options 可选项
- */
-export function evaluateComputed(ctx, changed, options) {
-  let { initial } = options || {};
-  let computedResult = {};
-  let computed = ctx.__computed;
+function constructComputedFeature(owner, computedDefinition) {
+  owner.__computedObservers = {};
+  owner.__computingQueue = [];
+  owner.__tempComputedResult = {};
 
-  let changedData;
+  let config = formatComputedDefinition(computedDefinition);
 
-  // 必需要先定义了计算规则
-  if (computed && computed.length) {
-    // 首次演算计算属性
-    if (initial) {
-      for (let i in computed) {
-        let { fn, require: r, name } = computed[i];
-        changedData = r.reduce((memo, item) => {
-          // 首次演算是在实例初始化，此时未调用 $setData，ctx__data 属性中没有任何值。
-          // 因此此时应该使用 ctx.data 求值
-          let { key, value } = getValueOfPath(ctx.data, item);
-          memo[item] = key ? value : getValueOfPath(computedResult, item).value;
-          return memo;
-        }, {});
-        computedResult[name] = fn.call(ctx, changedData);
+  for (let i = 0; i < config.length; i++) {
+    createComputedObserver(owner, config[i]);
+  }
+
+  return owner;
+}
+
+// 根据输入项 input 推演计算属性结果
+function evaluateComputedResult(owner, input) {
+  let {
+    __computedObservers: observers,
+    __computingQueue: queue,
+    __tempComputedResult: result
+  } = owner;
+
+  for (let k in input) {
+    let sections = parsePath(k);
+    let value = input[k];
+    k = compactPath(composePath(sections));
+
+    let observer = observers[k] || observers[sections[0].key];
+
+    if (observer) {
+      if (observer.name === k) {
+        observer.eval(value);
+      } else {
+        setValueOfPath(result, k, value);
+        observer.checkDirty();
+        observer.triggerRootObserverChildrenDirtyCheck();
       }
     } else {
-      let changedKeys = Object.keys(changed);
-      if (changedKeys.length) {
-        let pathCache = {};
-        let changedPaths = changedKeys.map(
-          item => (pathCache[item] = pathToArray(item))
-        );
-        for (let i in computed) {
-          let { fn, require: r, name } = computed[i];
-          if (r.length) {
-            let needUpdate = false;
-            let requiredName, requirePath;
-            for (let m in r) {
-              requiredName = r[m];
-              requirePath =
-                pathCache[requiredName] ||
-                (pathCache[requiredName] = pathToArray(requiredName));
-              if (
-                ~changedPaths.findIndex(path =>
-                  hasIntersection(requirePath, path)
-                )
-              ) {
-                changedPaths.push(
-                  pathCache[name] || (pathCache[name] = pathToArray(name))
-                );
-                needUpdate = true;
-                break;
-              }
-            }
-            if (needUpdate) {
-              changedData = r.reduce((memo, item) => {
-                let { key, value } = getValueOfPath(computedResult, item);
-                // 当 Component 的 prop 发生变化时，绕开了 $setData 方法触发数据更新
-                // 此时的 ctx.__data 为 undefined 或者 null，需要使用 ctx.data 来推算新的 computed 结果
-                memo[item] = key
-                  ? value
-                  : getValueOfPath(ctx.__data || ctx.data, item).value;
-                return memo;
-              }, {});
-              computedResult[name] = fn.call(ctx, changedData);
-            }
-          }
-        }
-      }
+      setValueOfPath(result, k, value);
     }
   }
-  return computedResult;
+
+  consumeObserverQueue(queue);
 }
+
+function calculateAliveChanges(observers) {
+  let data = {};
+  let observer, k;
+  for (k in observers) {
+    observer = observers[k];
+    if (observer.isAlive && observer.changed) {
+      data[k] = observer.newVal;
+    }
+    observer.clean();
+  }
+  return Object.keys(data).length ? data : null;
+}
+
+/** 计算初始的计算属性值 */
+function calculateInitialComputedValues(owner) {
+  let {
+    __computedObservers: observers,
+    __computingQueue: queue,
+    __tempComputedResult: result
+  } = owner;
+
+  Object.assign(result, owner.data);
+
+  let k, observer;
+  for (k in observers) {
+    observer = observers[k];
+    if (observer.readonly) {
+      observer.eval();
+    } else {
+      observer.watchings.forEach(observerAddToQueue);
+      observer.addToQueue();
+    }
+  }
+
+  if (queue.length) {
+    consumeObserverQueue(queue);
+    return calculateAliveChanges(observers);
+  }
+}
+
+export {
+  calculateInitialComputedValues,
+  constructComputedFeature,
+  evaluateComputedResult
+};
