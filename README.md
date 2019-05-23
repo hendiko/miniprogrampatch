@@ -166,3 +166,7 @@ _别名：`updateData`_
 在微信小程序基础库 v2.2.3 以上版本，Page 和 Component 的 `setData` 等效于 `$setData`，可以直接使用 `setData` 来触发数据更新。
 
 > PS: 微信小程序自 2.6.1 版本开始在 Component 中提供 observers 配置项用以监听 data 或 properties 数据变化。
+
+# 小程序路径表达式解析规则
+
+`miniprogrampatch` 实现了一套与小程序路径表达式相同规则的解析方案，具体参见 [小程序路径表达式解析规则](./docs/the_rule_of_parsing_path.md)
