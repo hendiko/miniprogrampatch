@@ -1,4 +1,4 @@
-// miniprogrampatch v1.2.0 Wed May 22 2019  
+// miniprogrampatch v1.2.1 Thu May 30 2019  
 (function webpackUniversalModuleDefinition(root, factory) {
 	if(typeof exports === 'object' && typeof module === 'object')
 		module.exports = factory();
@@ -218,13 +218,13 @@ function patchPage(Page, options) {
 
 
 exports.__esModule = true;
-exports.evaluateComputedResult = exports.constructComputedFeature = exports.calculateInitialComputedValues = undefined;
+exports.isPropPath = exports.evaluateComputedResult = exports.constructComputedFeature = exports.calculateInitialComputedValues = undefined;
 
 var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }(); /*
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       * @Author: Xavier Yin
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       * @Date: 2019-05-09 14:08:48
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       * @Last Modified by: Xavier Yin
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      * @Last Modified time: 2019-05-21 14:14:27
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      * @Last Modified time: 2019-05-30 16:05:23
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       */
 
 var _parsePath = __webpack_require__(3);
@@ -515,13 +515,18 @@ function createComputedObserver(owner, prop, observer) {
   return _observer;
 }
 
-function formatComputedDefinition(computed) {
+function isPropPath(props, name) {
+  return props ? props.hasOwnProperty((0, _parsePath2.default)(name)[0].key) : false;
+}
+
+function formatComputedDefinition(computed, props) {
   var config = [];
   var k = void 0,
       v = void 0;
   for (k in computed) {
     v = computed[k];
     k = (0, _parsePath.formatPath)(k);
+    if (isPropPath(props, k)) continue;
     if ((0, _utils.isFunction)(v)) {
       config.push({ name: k, require: [], fn: v });
     } else if ((0, _utils.isObject)(v)) {
@@ -550,7 +555,7 @@ function constructComputedFeature(owner, computedDefinition) {
   owner.__computingQueue = [];
   owner.__tempComputedResult = {};
 
-  var config = formatComputedDefinition(computedDefinition);
+  var config = formatComputedDefinition(computedDefinition, owner.__props);
 
   for (var i = 0; i < config.length; i++) {
     createComputedObserver(owner, config[i]);
@@ -595,7 +600,7 @@ function calculateAliveChanges(observers) {
       k = void 0;
   for (k in observers) {
     observer = observers[k];
-    if (observer.isAlive && observer.changed) {
+    if (!observer.readonly && observer.isAlive && observer.changed) {
       data[k] = observer.newVal;
     }
     observer.clean();
@@ -633,6 +638,7 @@ function calculateInitialComputedValues(owner) {
 exports.calculateInitialComputedValues = calculateInitialComputedValues;
 exports.constructComputedFeature = constructComputedFeature;
 exports.evaluateComputedResult = evaluateComputedResult;
+exports.isPropPath = isPropPath;
 
 /***/ }),
 /* 3 */
@@ -1094,7 +1100,7 @@ function combineData(observers) {
   var observer = void 0;
   for (k in observers) {
     observer = observers[k];
-    if (observer.isAlive && observer.changed) {
+    if (!observer.readonly && observer.isAlive && observer.changed) {
       data[k] = observer.newVal;
     }
   }
@@ -1104,7 +1110,7 @@ function combineData(observers) {
    * @Author: Xavier Yin
    * @Date: 2019-05-17 16:40:50
    * @Last Modified by: Xavier Yin
-   * @Last Modified time: 2019-05-21 14:06:39
+   * @Last Modified time: 2019-05-30 16:20:32
    */
 
 function formatData(input) {
@@ -1115,9 +1121,21 @@ function formatData(input) {
   return data;
 }
 
+function filterProps(data, props) {
+  if (!props) return data;
+  var _data = {};
+  for (var k in data) {
+    if (!(0, _computed.isPropPath)(props, k)) {
+      _data[k] = data[k];
+    }
+  }
+  return _data;
+}
+
 function setDataApi(data, cb, options) {
   if ((0, _utils.isObject)(data)) {
-    var ctx = options.ctx;
+    var ctx = options.ctx,
+        isPropChange = options.isPropChange;
 
 
     var changing = ctx.__changing;
@@ -1129,13 +1147,18 @@ function setDataApi(data, cb, options) {
     }
 
     data = formatData(data);
+
+    if (!isPropChange) {
+      data = filterProps(data, ctx.__props);
+    }
+
     Object.assign(ctx.__data, data);
 
     (0, _computed.evaluateComputedResult)(ctx, data);
 
     if (changing) return;
 
-    data = combineData(ctx.__computedObservers, ctx.__tempComputedResult, ctx.__data);
+    data = filterProps(combineData(ctx.__computedObservers, ctx.__tempComputedResult, ctx.__data), ctx.__props);
 
     for (var k in ctx.__computedObservers) {
       ctx.__computedObservers[k].clean();
@@ -1252,13 +1275,15 @@ exports.patchComponent = patchComponent;
 
 var _computed = __webpack_require__(2);
 
-var _setDataApi = __webpack_require__(7);
+var _setDataApi2 = __webpack_require__(7);
 
-var _setDataApi2 = _interopRequireDefault(_setDataApi);
+var _setDataApi3 = _interopRequireDefault(_setDataApi2);
 
 var _utils = __webpack_require__(6);
 
 var _watch = __webpack_require__(8);
+
+var _parsePath = __webpack_require__(3);
 
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
@@ -1266,18 +1291,13 @@ function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { de
  * 封装（重新定义）构造配置中的 properties 属性。
  * @param {object} props 构造配置中的 properties 属性值
  */
-/*
- * @Author: laixi
- * @Date: 2018-10-21 21:49:26
- * @Last Modified by: Xavier Yin
- * @Last Modified time: 2019-05-21 13:55:46
- */
 function initializeProperties(props) {
-  var _loop = function _loop(name) {
-    var prop = props[name];
+  var _loop = function _loop(_name) {
+    var prop = props[_name];
+    _name = (0, _parsePath.formatPath)(_name);
     // 如果构造配置中使用 `{propName<string>: constructor<function>}` 格式来定义 prop，
     // 那么将它转换为 `{prop<string>: config<object>}` 格式
-    if ((0, _utils.isFunction)(prop) || prop === null) prop = props[name] = { type: prop };
+    if ((0, _utils.isFunction)(prop) || prop === null) prop = props[_name] = { type: prop };
 
     // 获取原始配置中的 observer 值
     var _prop = prop,
@@ -1288,13 +1308,14 @@ function initializeProperties(props) {
     prop.observer = function (newVal, oldVal, changedPath) {
       // 如果未初始化计算能力，则不调用
       if (this.$setData && this.$setData.__attached) {
-        var _$setData;
+        var _setDataApi;
 
-        this.$setData((_$setData = {}, _$setData[name] = newVal, _$setData));
+        (0, _setDataApi3.default)((_setDataApi = {}, _setDataApi[_name] = newVal, _setDataApi), null, { ctx: this, isPropChange: true });
       }
       // 如果 prop 中定义了 observer 函数，则触发该函数调用。
       if ((0, _utils.isFunction)(observer)) observer.call(this, newVal, oldVal, changedPath);
     };
+    name = _name;
   };
 
   for (var name in props) {
@@ -1307,6 +1328,12 @@ function initializeProperties(props) {
  * 为小程序组件打补丁
  * @param {function} Component 小程序组件构造函数
  * @param {object} options 可选项
+ */
+/*
+ * @Author: laixi
+ * @Date: 2018-10-21 21:49:26
+ * @Last Modified by: Xavier Yin
+ * @Last Modified time: 2019-05-30 16:21:34
  */
 function patchComponent(Component, options) {
   // 如果已经打过补丁，则直接返回组件构造函数
@@ -1346,6 +1373,7 @@ function patchComponent(Component, options) {
 
     // 封装 created 钩子
     var _created = function _created() {
+      this.__props = obj.properties;
       /**
        * 按照官方文档的说明，在组件的 `created` 钩子中组件实例刚刚被创建，是不能在此生命周期中调用 `setData` 方法的。
        * (经测试，在 created 生命周期内存在 `this.setData` 方法，但该方法并不是 `attached` 之后的 `this.setData`。)
@@ -1384,7 +1412,7 @@ function patchComponent(Component, options) {
         // 保留原始 setData 的引用。
         this.__setData = this.setData;
         this.$setData = this.updateData = function (data, cb) {
-          return (0, _setDataApi2.default)(data, cb, { ctx: this });
+          return (0, _setDataApi3.default)(data, cb, { ctx: this });
         };
 
         // 用来标识这个 $setData 不是 created 钩子中的临时方法。

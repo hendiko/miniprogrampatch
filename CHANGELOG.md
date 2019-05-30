@@ -1,3 +1,7 @@
+## v1.2.1
+
+1. 禁止在 Component 中通过 setData 修改 properties 值。
+
 ## v1.2.0
 
 1. 重构 computed 能力，修复计算属性之间隐式依赖问题。

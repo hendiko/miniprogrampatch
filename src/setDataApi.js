@@ -2,10 +2,10 @@
  * @Author: Xavier Yin
  * @Date: 2019-05-17 16:40:50
  * @Last Modified by: Xavier Yin
- * @Last Modified time: 2019-05-21 14:06:39
+ * @Last Modified time: 2019-05-30 16:20:32
  */
 
-import { evaluateComputedResult } from "./computed";
+import { evaluateComputedResult, isPropPath } from "./computed";
 import { getValueOfPath } from "./evalPath";
 import { formatPath } from "./parsePath";
 import { isObject } from "./utils";
@@ -26,7 +26,7 @@ function combineData(observers, result = {}, input = {}) {
   let observer;
   for (k in observers) {
     observer = observers[k];
-    if (observer.isAlive && observer.changed) {
+    if (!observer.readonly && observer.isAlive && observer.changed) {
       data[k] = observer.newVal;
     }
   }
@@ -42,9 +42,20 @@ function formatData(input) {
   return data;
 }
 
+function filterProps(data, props) {
+  if (!props) return data;
+  let _data = {};
+  for (let k in data) {
+    if (!isPropPath(props, k)) {
+      _data[k] = data[k];
+    }
+  }
+  return _data;
+}
+
 function setDataApi(data, cb, options) {
   if (isObject(data)) {
-    let { ctx } = options;
+    let { ctx, isPropChange } = options;
 
     let changing = ctx.__changing;
     ctx.__changing = true;
@@ -55,16 +66,24 @@ function setDataApi(data, cb, options) {
     }
 
     data = formatData(data);
+
+    if (!isPropChange) {
+      data = filterProps(data, ctx.__props);
+    }
+
     Object.assign(ctx.__data, data);
 
     evaluateComputedResult(ctx, data);
 
     if (changing) return;
 
-    data = combineData(
-      ctx.__computedObservers,
-      ctx.__tempComputedResult,
-      ctx.__data
+    data = filterProps(
+      combineData(
+        ctx.__computedObservers,
+        ctx.__tempComputedResult,
+        ctx.__data
+      ),
+      ctx.__props
     );
 
     for (let k in ctx.__computedObservers) {

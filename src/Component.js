@@ -2,7 +2,7 @@
  * @Author: laixi
  * @Date: 2018-10-21 21:49:26
  * @Last Modified by: Xavier Yin
- * @Last Modified time: 2019-05-21 13:55:46
+ * @Last Modified time: 2019-05-30 16:21:34
  */
 import {
   calculateInitialComputedValues,
@@ -11,6 +11,7 @@ import {
 import setDataApi from "./setDataApi";
 import { isFunction, isObject } from "./utils";
 import { constructWatchFeature } from "./watch";
+import { formatPath } from "./parsePath";
 
 /**
  * 封装（重新定义）构造配置中的 properties 属性。
@@ -19,6 +20,7 @@ import { constructWatchFeature } from "./watch";
 function initializeProperties(props) {
   for (let name in props) {
     let prop = props[name];
+    name = formatPath(name);
     // 如果构造配置中使用 `{propName<string>: constructor<function>}` 格式来定义 prop，
     // 那么将它转换为 `{prop<string>: config<object>}` 格式
     if (isFunction(prop) || prop === null) prop = props[name] = { type: prop };
@@ -30,7 +32,7 @@ function initializeProperties(props) {
     prop.observer = function(newVal, oldVal, changedPath) {
       // 如果未初始化计算能力，则不调用
       if (this.$setData && this.$setData.__attached) {
-        this.$setData({ [name]: newVal });
+        setDataApi({ [name]: newVal }, null, { ctx: this, isPropChange: true });
       }
       // 如果 prop 中定义了 observer 函数，则触发该函数调用。
       if (isFunction(observer))
@@ -73,6 +75,7 @@ export function patchComponent(Component, options) {
 
     // 封装 created 钩子
     let _created = function() {
+      this.__props = obj.properties;
       /**
        * 按照官方文档的说明，在组件的 `created` 钩子中组件实例刚刚被创建，是不能在此生命周期中调用 `setData` 方法的。
        * (经测试，在 created 生命周期内存在 `this.setData` 方法，但该方法并不是 `attached` 之后的 `this.setData`。)

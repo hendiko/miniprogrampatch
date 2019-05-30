@@ -2,7 +2,7 @@
  * @Author: Xavier Yin
  * @Date: 2019-05-09 14:08:48
  * @Last Modified by: Xavier Yin
- * @Last Modified time: 2019-05-21 14:14:27
+ * @Last Modified time: 2019-05-30 16:05:23
  */
 
 import parsePath, { compactPath, composePath, formatPath } from "./parsePath";
@@ -247,12 +247,17 @@ function createComputedObserver(owner, prop, observer) {
   return _observer;
 }
 
-function formatComputedDefinition(computed) {
+function isPropPath(props, name) {
+  return props ? props.hasOwnProperty(parsePath(name)[0].key) : false;
+}
+
+function formatComputedDefinition(computed, props) {
   let config = [];
   let k, v;
   for (k in computed) {
     v = computed[k];
     k = formatPath(k);
+    if (isPropPath(props, k)) continue;
     if (isFunction(v)) {
       config.push({ name: k, require: [], fn: v });
     } else if (isObject(v)) {
@@ -275,7 +280,7 @@ function constructComputedFeature(owner, computedDefinition) {
   owner.__computingQueue = [];
   owner.__tempComputedResult = {};
 
-  let config = formatComputedDefinition(computedDefinition);
+  let config = formatComputedDefinition(computedDefinition, owner.__props);
 
   for (let i = 0; i < config.length; i++) {
     createComputedObserver(owner, config[i]);
@@ -320,7 +325,7 @@ function calculateAliveChanges(observers) {
   let observer, k;
   for (k in observers) {
     observer = observers[k];
-    if (observer.isAlive && observer.changed) {
+    if (!observer.readonly && observer.isAlive && observer.changed) {
       data[k] = observer.newVal;
     }
     observer.clean();
@@ -358,5 +363,6 @@ function calculateInitialComputedValues(owner) {
 export {
   calculateInitialComputedValues,
   constructComputedFeature,
-  evaluateComputedResult
+  evaluateComputedResult,
+  isPropPath
 };
