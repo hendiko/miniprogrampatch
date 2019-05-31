@@ -2,7 +2,7 @@
  * @Author: laixi
  * @Date: 2018-10-21 21:49:26
  * @Last Modified by: Xavier Yin
- * @Last Modified time: 2019-05-30 16:21:34
+ * @Last Modified time: 2019-05-31 09:12:49
  */
 import {
   calculateInitialComputedValues,
@@ -32,11 +32,24 @@ function initializeProperties(props) {
     prop.observer = function(newVal, oldVal, changedPath) {
       // 如果未初始化计算能力，则不调用
       if (this.$setData && this.$setData.__attached) {
-        setDataApi({ [name]: newVal }, null, { ctx: this, isPropChange: true });
-      }
-      // 如果 prop 中定义了 observer 函数，则触发该函数调用。
-      if (isFunction(observer))
+        if (!this.__changedProps) this.__changedProps = {};
+        this.__changedProps[name] = newVal;
+        setTimeout(() => {
+          if (this.__changedProps) {
+            setDataApi(this.__changedProps, null, {
+              ctx: this,
+              isPropChange: true
+            });
+            this.__changedProps = null;
+          }
+          if (isFunction(observer)) {
+            observer.call(this, newVal, oldVal, changedPath);
+          }
+        });
+      } else if (isFunction(observer)) {
+        // 如果 prop 中定义了 observer 函数，则触发该函数调用。
         observer.call(this, newVal, oldVal, changedPath);
+      }
     };
   }
   return props;
