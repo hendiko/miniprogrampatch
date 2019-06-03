@@ -1303,13 +1303,15 @@ function initializeProperties(props) {
     var _prop = prop,
         observer = _prop.observer;
 
-    // 重新定义 prop 配置中的 observer 值
+    if (!(0, _utils.isFunction)(observer)) observer = null;
 
+    // 重新定义 prop 配置中的 observer 值
     prop.observer = function (newVal, oldVal, changedPath) {
       var _this = this;
 
       // 如果未初始化计算能力，则不调用
-      if (this.$setData && this.$setData.__attached) {
+      // 此处表示非初始化，开始异步调用
+      if (prop.observer.__hasCalled && this.$setData && this.$setData.__attached) {
         if (!this.__changedProps) this.__changedProps = {};
         this.__changedProps[_name] = newVal;
         setTimeout(function () {
@@ -1320,13 +1322,17 @@ function initializeProperties(props) {
             });
             _this.__changedProps = null;
           }
-          if ((0, _utils.isFunction)(observer)) {
+          if (observer) {
             observer.call(_this, newVal, oldVal, changedPath);
           }
         });
-      } else if ((0, _utils.isFunction)(observer)) {
-        // 如果 prop 中定义了 observer 函数，则触发该函数调用。
-        observer.call(this, newVal, oldVal, changedPath);
+      } else {
+        // 这里是 Page/Component 初始化时，Observer 会被调用一次
+        prop.observer.__hasCalled = true;
+        if (observer) {
+          // 如果 prop 中定义了 observer 函数，则触发该函数调用。
+          observer.call(this, newVal, oldVal, changedPath);
+        }
       }
     };
     name = _name;
@@ -1347,7 +1353,7 @@ function initializeProperties(props) {
  * @Author: laixi
  * @Date: 2018-10-21 21:49:26
  * @Last Modified by: Xavier Yin
- * @Last Modified time: 2019-05-31 09:12:49
+ * @Last Modified time: 2019-05-31 23:11:38
  */
 function patchComponent(Component, options) {
   // 如果已经打过补丁，则直接返回组件构造函数

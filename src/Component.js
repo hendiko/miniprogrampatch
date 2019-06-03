@@ -2,7 +2,7 @@
  * @Author: laixi
  * @Date: 2018-10-21 21:49:26
  * @Last Modified by: Xavier Yin
- * @Last Modified time: 2019-05-31 09:12:49
+ * @Last Modified time: 2019-05-31 23:11:38
  */
 import {
   calculateInitialComputedValues,
@@ -27,11 +27,17 @@ function initializeProperties(props) {
 
     // 获取原始配置中的 observer 值
     let { observer } = prop;
+    if (!isFunction(observer)) observer = null;
 
     // 重新定义 prop 配置中的 observer 值
     prop.observer = function(newVal, oldVal, changedPath) {
       // 如果未初始化计算能力，则不调用
-      if (this.$setData && this.$setData.__attached) {
+      // 此处表示非初始化，开始异步调用
+      if (
+        prop.observer.__hasCalled &&
+        this.$setData &&
+        this.$setData.__attached
+      ) {
         if (!this.__changedProps) this.__changedProps = {};
         this.__changedProps[name] = newVal;
         setTimeout(() => {
@@ -42,13 +48,17 @@ function initializeProperties(props) {
             });
             this.__changedProps = null;
           }
-          if (isFunction(observer)) {
+          if (observer) {
             observer.call(this, newVal, oldVal, changedPath);
           }
         });
-      } else if (isFunction(observer)) {
-        // 如果 prop 中定义了 observer 函数，则触发该函数调用。
-        observer.call(this, newVal, oldVal, changedPath);
+      } else {
+        // 这里是 Page/Component 初始化时，Observer 会被调用一次
+        prop.observer.__hasCalled = true;
+        if (observer) {
+          // 如果 prop 中定义了 observer 函数，则触发该函数调用。
+          observer.call(this, newVal, oldVal, changedPath);
+        }
       }
     };
   }
