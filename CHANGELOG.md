@@ -1,3 +1,7 @@
+## v1.2.2
+
+1. 优化 props 触发的 computed 求值，每一轮 props 的变化，只触发一次 computed 计算。
+
 ## v1.2.1
 
 1. 禁止在 Component 中通过 setData 修改 properties 值。
