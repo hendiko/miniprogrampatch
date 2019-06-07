@@ -1,4 +1,4 @@
-// miniprogrampatch v1.2.1 Thu May 30 2019  
+// miniprogrampatch v1.2.2 Fri Jun 07 2019  
 (function webpackUniversalModuleDefinition(root, factory) {
 	if(typeof exports === 'object' && typeof module === 'object')
 		module.exports = factory();
@@ -1036,7 +1036,7 @@ var _typeof = typeof Symbol === "function" && typeof Symbol.iterator === "symbol
  * @Author: laixi
  * @Date: 2018-10-20 13:17:17
  * @Last Modified by: Xavier Yin
- * @Last Modified time: 2019-05-21 13:58:53
+ * @Last Modified time: 2019-06-07 09:16:22
  */
 var isObject = exports.isObject = function isObject(obj) {
   return obj !== null && "object" === (typeof obj === "undefined" ? "undefined" : _typeof(obj));
@@ -1059,6 +1059,18 @@ var isEqual = exports.isEqual = function isEqual(x, y) {
     return _isNaN(x) && _isNaN(y);
   }
 };
+
+var nextTick = exports.nextTick = function nextTick(fn) {
+  return setTimeout(fn, 10);
+};
+
+if (typeof wx !== "undefined") {
+  if (wx.nextTick) {
+    exports.nextTick = nextTick = function nextTick(fn) {
+      return wx.nextTick(fn);
+    };
+  }
+}
 
 /***/ }),
 /* 7 */
@@ -1275,9 +1287,9 @@ exports.patchComponent = patchComponent;
 
 var _computed = __webpack_require__(2);
 
-var _setDataApi2 = __webpack_require__(7);
+var _setDataApi = __webpack_require__(7);
 
-var _setDataApi3 = _interopRequireDefault(_setDataApi2);
+var _setDataApi2 = _interopRequireDefault(_setDataApi);
 
 var _utils = __webpack_require__(6);
 
@@ -1303,17 +1315,36 @@ function initializeProperties(props) {
     var _prop = prop,
         observer = _prop.observer;
 
+    if (!(0, _utils.isFunction)(observer)) observer = null;
+
     // 重新定义 prop 配置中的 observer 值
-
     prop.observer = function (newVal, oldVal, changedPath) {
-      // 如果未初始化计算能力，则不调用
-      if (this.$setData && this.$setData.__attached) {
-        var _setDataApi;
+      var _this = this;
 
-        (0, _setDataApi3.default)((_setDataApi = {}, _setDataApi[_name] = newVal, _setDataApi), null, { ctx: this, isPropChange: true });
+      // 如果未初始化计算能力，则不调用
+      // 此处表示非初始化，开始异步调用
+      if (this.$setData && this.$setData.__attached) {
+        if (!this.__changedProps) this.__changedProps = {};
+        this.__changedProps[_name] = newVal;
+        (0, _utils.nextTick)(function () {
+          if (_this.__changedProps) {
+            (0, _setDataApi2.default)(_this.__changedProps, null, {
+              ctx: _this,
+              isPropChange: true
+            });
+            _this.__changedProps = null;
+          }
+          if (observer) {
+            observer.call(_this, newVal, oldVal, changedPath);
+          }
+        });
+      } else {
+        // 这里是 Page/Component 初始化时，Observer 会被调用一次
+        if (observer) {
+          // 如果 prop 中定义了 observer 函数，则触发该函数调用。
+          observer.call(this, newVal, oldVal, changedPath);
+        }
       }
-      // 如果 prop 中定义了 observer 函数，则触发该函数调用。
-      if ((0, _utils.isFunction)(observer)) observer.call(this, newVal, oldVal, changedPath);
     };
     name = _name;
   };
@@ -1333,7 +1364,7 @@ function initializeProperties(props) {
  * @Author: laixi
  * @Date: 2018-10-21 21:49:26
  * @Last Modified by: Xavier Yin
- * @Last Modified time: 2019-05-30 16:21:34
+ * @Last Modified time: 2019-06-07 09:27:26
  */
 function patchComponent(Component, options) {
   // 如果已经打过补丁，则直接返回组件构造函数
@@ -1412,7 +1443,7 @@ function patchComponent(Component, options) {
         // 保留原始 setData 的引用。
         this.__setData = this.setData;
         this.$setData = this.updateData = function (data, cb) {
-          return (0, _setDataApi3.default)(data, cb, { ctx: this });
+          return (0, _setDataApi2.default)(data, cb, { ctx: this });
         };
 
         // 用来标识这个 $setData 不是 created 钩子中的临时方法。
