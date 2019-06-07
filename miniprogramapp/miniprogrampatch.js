@@ -1,4 +1,4 @@
-// miniprogrampatch v1.2.2 Fri May 31 2019  
+// miniprogrampatch v1.2.2 Fri Jun 07 2019  
 (function webpackUniversalModuleDefinition(root, factory) {
 	if(typeof exports === 'object' && typeof module === 'object')
 		module.exports = factory();
@@ -1036,7 +1036,7 @@ var _typeof = typeof Symbol === "function" && typeof Symbol.iterator === "symbol
  * @Author: laixi
  * @Date: 2018-10-20 13:17:17
  * @Last Modified by: Xavier Yin
- * @Last Modified time: 2019-05-21 13:58:53
+ * @Last Modified time: 2019-06-07 09:16:22
  */
 var isObject = exports.isObject = function isObject(obj) {
   return obj !== null && "object" === (typeof obj === "undefined" ? "undefined" : _typeof(obj));
@@ -1059,6 +1059,18 @@ var isEqual = exports.isEqual = function isEqual(x, y) {
     return _isNaN(x) && _isNaN(y);
   }
 };
+
+var nextTick = exports.nextTick = function nextTick(fn) {
+  return setTimeout(fn, 10);
+};
+
+if (typeof wx !== "undefined") {
+  if (wx.nextTick) {
+    exports.nextTick = nextTick = function nextTick(fn) {
+      return wx.nextTick(fn);
+    };
+  }
+}
 
 /***/ }),
 /* 7 */
@@ -1311,10 +1323,10 @@ function initializeProperties(props) {
 
       // 如果未初始化计算能力，则不调用
       // 此处表示非初始化，开始异步调用
-      if (prop.observer.__hasCalled && this.$setData && this.$setData.__attached) {
+      if (this.$setData && this.$setData.__attached) {
         if (!this.__changedProps) this.__changedProps = {};
         this.__changedProps[_name] = newVal;
-        setTimeout(function () {
+        (0, _utils.nextTick)(function () {
           if (_this.__changedProps) {
             (0, _setDataApi2.default)(_this.__changedProps, null, {
               ctx: _this,
@@ -1328,7 +1340,6 @@ function initializeProperties(props) {
         });
       } else {
         // 这里是 Page/Component 初始化时，Observer 会被调用一次
-        prop.observer.__hasCalled = true;
         if (observer) {
           // 如果 prop 中定义了 observer 函数，则触发该函数调用。
           observer.call(this, newVal, oldVal, changedPath);
@@ -1353,7 +1364,7 @@ function initializeProperties(props) {
  * @Author: laixi
  * @Date: 2018-10-21 21:49:26
  * @Last Modified by: Xavier Yin
- * @Last Modified time: 2019-05-31 23:11:38
+ * @Last Modified time: 2019-06-07 09:27:26
  */
 function patchComponent(Component, options) {
   // 如果已经打过补丁，则直接返回组件构造函数
