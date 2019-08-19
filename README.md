@@ -1,6 +1,8 @@
 # 概述
 
-`miniprogrampatch` 非常简单易用，它只有 `patchPage` 和 `patchComponent` 两个函数，分别用以增强微信小程序提供的 `Page` 和 `Component` 对象，使得页面（Page）和自定义组件（Component）具有属性监听（watch）和计算属性（computed）特性。
+`miniprogrampatch` 非常简单易用，它提供 `patchPage` 和 `patchComponent` 两个函数，分别用以增强微信小程序提供的 `Page` 和 `Component` 对象，使得页面（Page）和自定义组件（Component）具有属性监听（watch）和计算属性（computed）特性。
+
+> 自 v1.2.3+ 版本开始，`miniprogrampatch` 额外提供了 `patchOnShareAppMessage` 函数用来增强设置小程序分享落地页，更多详情点击[微信小程序分享落地页重定向](./docs/patchonshareappmessage.md)。
 
 # 小程序示例片段
 
