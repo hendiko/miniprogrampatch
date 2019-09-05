@@ -2,7 +2,7 @@
  * @Author: Xavier Yin
  * @Date: 2019-05-09 14:08:48
  * @Last Modified by: Xavier Yin
- * @Last Modified time: 2019-05-30 16:05:23
+ * @Last Modified time: 2019-08-31 11:41:23
  */
 
 import parsePath, { compactPath, composePath, formatPath } from "./parsePath";
@@ -40,6 +40,7 @@ class Observer {
     this.keenObservers = []; // 脏状态检查敏感观察者集合
 
     this.evalTimes = 0;
+    this.everEvaluated = false; // 是否从未被计算过
   }
 
   get changed() {
@@ -125,7 +126,11 @@ class Observer {
       let name;
       for (let i = 0; i < this.required.length; i++) {
         name = this.required[i];
-        args[name] = this.owner.__computedObservers[name].newVal;
+        let requiredObserver = this.owner.__computedObservers[name];
+        if (!requiredObserver.everEvaluated) {
+          requiredObserver.eval();
+        }
+        args[name] = requiredObserver.newVal;
       }
       return this.fn.call(this.owner, args);
     }
@@ -135,6 +140,7 @@ class Observer {
    * 如果给定 value 参数，表示从外部直接对本属性赋值
    */
   eval(value) {
+    this.everEvaluated = true;
     this._evaluating = true;
     this.evalTimes++;
 
