@@ -1,6 +1,6 @@
 {
   "name": "miniprogrampatch",
-  "version": "1.2.3",
+  "version": "1.2.4",
   "description": "The patch provides computed and watch features for miniprogram.",
   "main": "dist/miniprogrampatch.js",
   "scripts": {
