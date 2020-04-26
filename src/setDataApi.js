@@ -2,7 +2,7 @@
  * @Author: Xavier Yin
  * @Date: 2019-05-17 16:40:50
  * @Last Modified by: Xavier Yin
- * @Last Modified time: 2019-05-30 16:20:32
+ * @Last Modified time: 2020-04-26 22:04:01
  */
 
 import { evaluateComputedResult, isPropPath } from "./computed";
@@ -67,6 +67,10 @@ function setDataApi(data, cb, options) {
 
     data = formatData(data);
 
+    // 禁止在 Component 内部修改 properties 值
+    // 注意：微信小程序实际运行过程中(测试小程序基础库 2.8.0)
+    // Component 内部修改 properties 值会触发视图重新渲染，
+    // 但这违背了数据修改原则，miniprogrampatch 暂不支持此类行为。
     if (!isPropChange) {
       data = filterProps(data, ctx.__props);
     }

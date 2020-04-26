@@ -2,11 +2,11 @@
  * @Author: laixi
  * @Date: 2018-10-21 21:49:26
  * @Last Modified by: Xavier Yin
- * @Last Modified time: 2019-06-07 09:27:26
+ * @Last Modified time: 2020-04-26 22:34:22
  */
 import {
   calculateInitialComputedValues,
-  constructComputedFeature
+  constructComputedFeature,
 } from "./computed";
 import setDataApi from "./setDataApi";
 import { isFunction, isObject, nextTick } from "./utils";
@@ -27,10 +27,14 @@ function initializeProperties(props) {
 
     // 获取原始配置中的 observer 值
     let { observer } = prop;
-    if (!isFunction(observer)) observer = null;
 
     // 重新定义 prop 配置中的 observer 值
-    prop.observer = function(newVal, oldVal, changedPath) {
+    prop.observer = function (newVal, oldVal, changedPath) {
+      // prop.observer 可以是一个函数，或者是一个字符串表示组件实例的方法名。
+      let _observer = "string" === typeof observer ? this[observer] : observer;
+
+      if (!isFunction(_observer)) _observer = null;
+
       // 如果未初始化计算能力，则不调用
       // 此处表示非初始化，开始异步调用
       if (this.$setData && this.$setData.__attached) {
@@ -40,19 +44,19 @@ function initializeProperties(props) {
           if (this.__changedProps) {
             setDataApi(this.__changedProps, null, {
               ctx: this,
-              isPropChange: true
+              isPropChange: true,
             });
             this.__changedProps = null;
           }
-          if (observer) {
-            observer.call(this, newVal, oldVal, changedPath);
+          if (_observer) {
+            _observer.call(this, newVal, oldVal, changedPath);
           }
         });
       } else {
         // 这里是 Page/Component 初始化时，Observer 会被调用一次
-        if (observer) {
+        if (_observer) {
           // 如果 prop 中定义了 observer 函数，则触发该函数调用。
-          observer.call(this, newVal, oldVal, changedPath);
+          _observer.call(this, newVal, oldVal, changedPath);
         }
       }
     };
@@ -75,7 +79,7 @@ export function patchComponent(Component, options) {
   let { debug } = options || {};
 
   // 创建一个新的高阶函数(High-Order Function)作为组件构造函数
-  let constructor = function(obj) {
+  let constructor = function (obj) {
     obj = Object.assign({}, obj);
     obj.properties = initializeProperties(obj.properties || {});
 
@@ -92,7 +96,7 @@ export function patchComponent(Component, options) {
     }
 
     // 封装 created 钩子
-    let _created = function() {
+    let _created = function () {
       this.__props = obj.properties;
       /**
        * 按照官方文档的说明，在组件的 `created` 钩子中组件实例刚刚被创建，是不能在此生命周期中调用 `setData` 方法的。
@@ -113,7 +117,7 @@ export function patchComponent(Component, options) {
        */
       if (!this.$setData) {
         // 临时性的 `$setData` 和 `updateData`。
-        this.$setData = this.updateData = function() {
+        this.$setData = this.updateData = function () {
           return this.setData.apply(this, arguments);
         };
       }
@@ -126,12 +130,12 @@ export function patchComponent(Component, options) {
     };
 
     // 封装 attached 钩子
-    let _attached = function() {
+    let _attached = function () {
       // 初始化 $setData 方法。
       if (!(this.$setData && this.$setData.__attached)) {
         // 保留原始 setData 的引用。
         this.__setData = this.setData;
-        this.$setData = this.updateData = function(data, cb) {
+        this.$setData = this.updateData = function (data, cb) {
           return setDataApi(data, cb, { ctx: this });
         };
 
