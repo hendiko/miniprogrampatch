@@ -46,7 +46,7 @@ Page({
   watch: {
     total(value, old) {
       // do something
-    }
+    },
   },
 
   computed: {
@@ -54,13 +54,13 @@ Page({
       require: ["count", "countByTen", "countByHundred"], // 显式指定依赖属性
       fn({ count, countByTen, countByHundred }) {
         return count + countByTen + countByHundred;
-      }
-    }
+      },
+    },
   },
 
   data: {
-    count: 1
-  }
+    count: 1,
+  },
 });
 ```
 
@@ -80,7 +80,7 @@ patchPage(Page)({
 
   computed: {
     // add some computed props
-  }
+  },
 
   // todo
 });
@@ -100,15 +100,15 @@ patchPage(Page)({
 Page({
   watch: {
     // 嵌套路径监听
-    "x.y": function(value, old) {
+    "x.y": function (value, old) {
       console.log("x.y", value === old); // x.y true
     },
 
     // 监听属性
     x(value, old) {
       console.log("x", value === old); // x true
-    }
-  }
+    },
+  },
 });
 ```
 
@@ -119,7 +119,7 @@ Page({
 ```js
 Page({
   data: {
-    count: 10
+    count: 10,
   },
 
   computed: {
@@ -133,7 +133,7 @@ Page({
       require: ["count"],
       fn({ count }) {
         return count * 10;
-      }
+      },
     },
 
     /** count 乘以 100（依赖另一个计算属性 countByTen）*/
@@ -141,9 +141,9 @@ Page({
       require: ["countByTen"],
       fn({ countByTen }) {
         return countByTen * 10;
-      }
-    }
-  }
+      },
+    },
+  },
 });
 ```
 
@@ -172,3 +172,5 @@ _别名：`updateData`_
 # 小程序路径表达式解析规则
 
 `miniprogrampatch` 实现了一套与小程序路径表达式相同规则的解析方案，具体参见 [小程序路径表达式解析规则](./docs/the_rule_of_parsing_path.md)
+
+# [miniprogrampatch 实现原则与规范](./docs/principle_and_specification_of_implementation.md)
