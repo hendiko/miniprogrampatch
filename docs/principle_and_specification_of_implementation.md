@@ -24,7 +24,7 @@ minipogrampatch 实现的 `setData` 方法与微信小程序原有 API 输入与
 
 ## miniprogrampatch 与微信小程序一些原生表现的差异
 
-### Component 内部修改 properties
+### 不允许在 Component 内部修改 properties
 
 对于一个微信小程序 Component 实例而言，所有内部状态应声明在 `data` 中，而外部状态应声明在 `properties` 中。
 
@@ -49,7 +49,7 @@ Component({
 });
 ```
 
-**`miniprogrampatch` 不支持在内部修改 `properties`。**
+**`miniprogrampatch` 不允许在内部修改 `properties`。**
 
 使用 `patchComponent` 函数增强的 Component 实例，在调用 `setData` 时会检查是否正在修改一个 properties 值，并且阻止这种修改。
 
@@ -69,3 +69,60 @@ patchComponent(Component)({
   },
 });
 ```
+
+### watch 和 observer 的首次触发时机
+
+在微信小程序中定义组件的 properties 时，可以设置 `observer` 函数，例如：
+
+```js
+// Foo component
+Component({
+  properties: {
+    foo: {
+      type: Number,
+      value: 0,
+      observer(val) {
+        console.log(val);
+      },
+    },
+  },
+});
+```
+
+使用时：
+
+```js
+<Foo foo="{{1}}"></Foo>
+```
+
+微信小程序在处理 property 的 observer 时是将接收到的初始值与定义的默认值进行对比，如果比较出差异就调用一次 `Observer` 函数。
+
+笔者认为这会让组件静默设置 property 初始值的能力，因此在 miniprogrampatch 中，对 properties 中定义的 `Observer` 调用逻辑与微信小程序保持一致。
+
+但是定义在 `watch` 中的监听函数，在组件初始化时不会被调用，只有被观察对象的值发生变化的时候才会被调用。
+
+```js
+// Foo component
+patchComponent(Component)({
+  properties: {
+    foo: {
+      type: Number,
+      value: 0,
+      observer(val) {
+        // 在组件初始化时，如果 foo 传入值不等于 0，该函数会被调用。
+        console.log(val);
+      },
+    },
+  },
+
+  watch: {
+    // 无论组件初始化时 foo 的传入值是什么，该函数不会调用。
+    // 只有组件生命周期内，如果 foo 值发生变化，该函数才会被调用。
+    foo(val) {
+      console.log("foo's new value is ", val);
+    },
+  },
+});
+```
+
+> 笔者曾与微信小程序官方人员讨论过此问题，详情点击参阅[自定义组件初始化时因为默认值不同导致 prop 的 observer 被调用](https://developers.weixin.qq.com/community/develop/doc/0006cc062dc7e032e48791c825b800)

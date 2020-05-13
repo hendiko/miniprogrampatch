@@ -173,4 +173,6 @@ _别名：`updateData`_
 
 `miniprogrampatch` 实现了一套与小程序路径表达式相同规则的解析方案，具体参见 [小程序路径表达式解析规则](./docs/the_rule_of_parsing_path.md)
 
-# [miniprogrampatch 实现原则与规范](./docs/principle_and_specification_of_implementation.md)
+# miniprogrampatch 实现原则与规范
+
+了解 miniprogrampatch 的实现原则以及与微信小程序原生 API 的一些差异，请[点击查看](./docs/principle_and_specification_of_implementation.md)
