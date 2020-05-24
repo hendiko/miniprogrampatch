@@ -143,6 +143,16 @@ Page({
         return countByTen * 10;
       },
     },
+
+    /** 等于 count 值 10。 */
+    countNumber: "count", // `1.3.0+`
+
+    /** 等于 1,000,000 */
+    million: [
+      // `1.3.0+`
+      ["count", "countByTen", "countByHundred"],
+      (ten, hundred, thousand) => ten * hundred * thousand,
+    ],
   },
 });
 ```
@@ -154,6 +164,8 @@ Page({
 - `require`(可选) 数组，包含当前计算属性所依赖的其他属性名称（包括路径表达式）。
 - `fn`（必选）函数，它接受一个对象作为参数，该参数对象为当前计算属性所有依赖属性名称与值。
 - `keen`（可选）布尔，默认值为`false`。如果该参数为 `true`，则表示当前计算属性处于敏锐观察模式，当前属性所依赖的属性有任何操作都将重新计算当前属性值。参见[关于 computed 敏锐模式](./docs/about_keen.md)
+
+点击查看[computed 定义格式](./docs/computed.md)
 
 ## 方法
 

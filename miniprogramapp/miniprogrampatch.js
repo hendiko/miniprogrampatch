@@ -1,4 +1,4 @@
-// miniprogrampatch v1.2.2 Fri Jun 07 2019  
+// miniprogrampatch v1.3.0 Sun May 24 2020  
 (function webpackUniversalModuleDefinition(root, factory) {
 	if(typeof exports === 'object' && typeof module === 'object')
 		module.exports = factory();
@@ -106,16 +106,19 @@ var _Page = __webpack_require__(1);
 
 var _Component = __webpack_require__(9);
 
-/*
- * @Author: Xavier
- * @Date: 2018-10-20 12:56:52
- * @Last Modified by: Xavier Yin
- * @Last Modified time: 2019-05-09 10:55:53
- */
+var _onShareAppMessage = __webpack_require__(10);
+
 module.exports = {
   patchComponent: _Component.patchComponent,
-  patchPage: _Page.patchPage
-};
+  patchOnShareAppMessage: _onShareAppMessage.patchOnShareAppMessage,
+  patchPage: _Page.patchPage,
+  patchRouterPage: _onShareAppMessage.patchRouterPage
+}; /*
+    * @Author: Xavier
+    * @Date: 2018-10-20 12:56:52
+    * @Last Modified by: Xavier Yin
+    * @Last Modified time: 2019-08-19 10:50:05
+    */
 
 /***/ }),
 /* 1 */
@@ -224,7 +227,7 @@ var _createClass = function () { function defineProperties(target, props) { for 
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       * @Author: Xavier Yin
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       * @Date: 2019-05-09 14:08:48
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       * @Last Modified by: Xavier Yin
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      * @Last Modified time: 2019-05-30 16:05:23
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      * @Last Modified time: 2020-05-24 16:43:24
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       */
 
 var _parsePath = __webpack_require__(3);
@@ -277,6 +280,7 @@ var Observer = function () {
     this.keenObservers = []; // 脏状态检查敏感观察者集合
 
     this.evalTimes = 0;
+    this.everEvaluated = false; // 是否从未被计算过
   }
 
   Observer.prototype.addChildObserver = function addChildObserver(observer) {
@@ -340,7 +344,7 @@ var Observer = function () {
     }
   };
 
-  /** 计算出属性值 */
+  /** (内部求值函数）计算出属性值 */
 
 
   Observer.prototype.compute = function compute() {
@@ -351,18 +355,24 @@ var Observer = function () {
       var name = void 0;
       for (var i = 0; i < this.required.length; i++) {
         name = this.required[i];
-        args[name] = this.owner.__computedObservers[name].newVal;
+        var requiredObserver = this.owner.__computedObservers[name];
+        if (!requiredObserver.everEvaluated) {
+          requiredObserver.eval();
+        }
+        args[name] = requiredObserver.newVal;
       }
       return this.fn.call(this.owner, args);
     }
   };
 
   /**
+   * (公开求值函数)
    * 如果给定 value 参数，表示从外部直接对本属性赋值
    */
 
 
   Observer.prototype.eval = function _eval(value) {
+    this.everEvaluated = true;
     this._evaluating = true;
     this.evalTimes++;
 
@@ -436,11 +446,22 @@ var Observer = function () {
     get: function get() {
       return this.getTempResult().key;
     }
+
+    /**
+     * 如果在 computed 配置中定义了无依赖的属性，这类属性视为只须求值一次便不再更新属性值。
+     */
+
   }, {
     key: "once",
     get: function get() {
       return !this.required.length;
     }
+
+    /**
+     * 如果在 computed 配置中定义了无依赖的计算属性，这些属性只会初始化时计算一次属性值。
+     * 首次求值结束后，该属性的计算函数被置为 null，属性值不再更新，此后该属性被视为只读(readonly)。
+     */
+
   }, {
     key: "readonly",
     get: function get() {
@@ -519,6 +540,7 @@ function isPropPath(props, name) {
   return props ? props.hasOwnProperty((0, _parsePath2.default)(name)[0].key) : false;
 }
 
+/** 格式化定义的 computed 字段 */
 function formatComputedDefinition(computed, props) {
   var config = [];
   var k = void 0,
@@ -526,14 +548,51 @@ function formatComputedDefinition(computed, props) {
   for (k in computed) {
     v = computed[k];
     k = (0, _parsePath.formatPath)(k);
+    // 不可定义 props 的属性作为 computed 属性。
     if (isPropPath(props, k)) continue;
-    if ((0, _utils.isFunction)(v)) {
-      config.push({ name: k, require: [], fn: v });
+
+    // 使用数组方式定义依赖关系。
+    if ((0, _utils.isArray)(v)) {
+      (function () {
+        // 数组可包含3个成员
+        var _v = v,
+            req = _v[0],
+            fn = _v[1],
+            keen = _v[2];
+
+        if ((0, _utils.isString)(req)) {
+          req = [req];
+        }
+        if (!(0, _utils.isArray)(req)) {
+          req = [];
+        }
+        // 调用开发者对 req 的数据类型负责，期待为 Array<string>
+        req = req.map(function (n) {
+          return (0, _parsePath.formatPath)(n);
+        });
+        var isFnFunc = (0, _utils.isFunction)(fn);
+        var _fn = function _fn(data) {
+          var val = req.map(function (n) {
+            return data[n];
+          });
+          if (isFnFunc) {
+            return fn.apply(this, val);
+          } else {
+            // 如果没有定义计算函数，则单依赖计算属性直接返回依赖属性值，多依赖计算属性返回依赖属性值构成的数组。
+            // 如果定义的依赖字段个数为1，则直接返回该依赖字段的更新值。
+            // 如果定义的依赖字段个数为0，则直接返回 undefined。
+            return val.length > 1 ? val : val[0];
+          }
+        };
+        config.push({ name: k, require: req, fn: _fn, keen: keen });
+
+        // 一个 computed 属性的完整定义格式应该是一个Object。
+      })();
     } else if ((0, _utils.isObject)(v)) {
-      var _v = v,
-          req = _v.require,
-          fn = _v.fn,
-          keen = _v.keen;
+      var _v2 = v,
+          req = _v2.require,
+          fn = _v2.fn,
+          keen = _v2.keen;
 
       if ((0, _utils.isFunction)(fn)) {
         config.push({
@@ -545,6 +604,19 @@ function formatComputedDefinition(computed, props) {
           keen: keen
         });
       }
+
+      // 一个只读computed属性（无任何依赖）
+    } else if ((0, _utils.isFunction)(v)) {
+      config.push({ name: k, require: [], fn: v });
+
+      // 定义计算属性等于另一个路径的属性值。
+    } else if ((0, _utils.isString)(v)) {
+      (function () {
+        var req = (0, _parsePath.formatPath)(v);
+        config.push({ name: k, require: [req], fn: function fn(data) {
+            return data[req];
+          } });
+      })();
     }
   }
   return config;
@@ -685,7 +757,7 @@ function ParseError(type, pathstr) {
  * @Author: Xavier Yin
  * @Date: 2019-04-28 15:43:34
  * @Last Modified by: Xavier Yin
- * @Last Modified time: 2019-05-21 16:49:07
+ * @Last Modified time: 2020-05-24 15:50:20
  *
  * 解析小程序 data 以路径作为属性名
  */
@@ -879,7 +951,11 @@ var compactPath = exports.compactPath = function compactPath(path) {
  * 格式化路径，转换为标准的简洁路径
  */
 function formatPath(path) {
-  return compactPath(composePath(parsePath(path)));
+  if ("string" === typeof path) {
+    return compactPath(composePath(parsePath(path)));
+  } else {
+    throw new _error2.default("The path of data is not a string.");
+  }
 }
 
 /***/ }),
@@ -1036,7 +1112,7 @@ var _typeof = typeof Symbol === "function" && typeof Symbol.iterator === "symbol
  * @Author: laixi
  * @Date: 2018-10-20 13:17:17
  * @Last Modified by: Xavier Yin
- * @Last Modified time: 2019-06-07 09:16:22
+ * @Last Modified time: 2020-05-24 16:12:22
  */
 var isObject = exports.isObject = function isObject(obj) {
   return obj !== null && "object" === (typeof obj === "undefined" ? "undefined" : _typeof(obj));
@@ -1046,6 +1122,9 @@ var isFunction = exports.isFunction = function isFunction(obj) {
 };
 var isArray = exports.isArray = function isArray(x) {
   return x && x.constructor === Array;
+};
+var isString = exports.isString = function isString(x) {
+  return "string" === typeof x;
 };
 
 var _isNaN = function _isNaN(x) {
@@ -1122,7 +1201,7 @@ function combineData(observers) {
    * @Author: Xavier Yin
    * @Date: 2019-05-17 16:40:50
    * @Last Modified by: Xavier Yin
-   * @Last Modified time: 2019-05-30 16:20:32
+   * @Last Modified time: 2020-04-26 22:04:01
    */
 
 function formatData(input) {
@@ -1160,6 +1239,10 @@ function setDataApi(data, cb, options) {
 
     data = formatData(data);
 
+    // 禁止在 Component 内部修改 properties 值
+    // 注意：微信小程序实际运行过程中(测试小程序基础库 2.8.0)
+    // Component 内部修改 properties 值会触发视图重新渲染，
+    // 但这违背了数据修改原则，miniprogrampatch 暂不支持此类行为。
     if (!isPropChange) {
       data = filterProps(data, ctx.__props);
     }
@@ -1315,11 +1398,15 @@ function initializeProperties(props) {
     var _prop = prop,
         observer = _prop.observer;
 
-    if (!(0, _utils.isFunction)(observer)) observer = null;
-
     // 重新定义 prop 配置中的 observer 值
+
     prop.observer = function (newVal, oldVal, changedPath) {
       var _this = this;
+
+      // prop.observer 可以是一个函数，或者是一个字符串表示组件实例的方法名。
+      var _observer = "string" === typeof observer ? this[observer] : observer;
+
+      if (!(0, _utils.isFunction)(_observer)) _observer = null;
 
       // 如果未初始化计算能力，则不调用
       // 此处表示非初始化，开始异步调用
@@ -1334,15 +1421,15 @@ function initializeProperties(props) {
             });
             _this.__changedProps = null;
           }
-          if (observer) {
-            observer.call(_this, newVal, oldVal, changedPath);
+          if (_observer) {
+            _observer.call(_this, newVal, oldVal, changedPath);
           }
         });
       } else {
         // 这里是 Page/Component 初始化时，Observer 会被调用一次
-        if (observer) {
+        if (_observer) {
           // 如果 prop 中定义了 observer 函数，则触发该函数调用。
-          observer.call(this, newVal, oldVal, changedPath);
+          _observer.call(this, newVal, oldVal, changedPath);
         }
       }
     };
@@ -1364,7 +1451,7 @@ function initializeProperties(props) {
  * @Author: laixi
  * @Date: 2018-10-21 21:49:26
  * @Last Modified by: Xavier Yin
- * @Last Modified time: 2019-06-07 09:27:26
+ * @Last Modified time: 2020-04-26 22:34:22
  */
 function patchComponent(Component, options) {
   // 如果已经打过补丁，则直接返回组件构造函数
@@ -1487,6 +1574,137 @@ function patchComponent(Component, options) {
 
   return constructor;
 }
+
+/***/ }),
+/* 10 */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+
+
+exports.__esModule = true;
+/*
+ * @Author: Xavier Yin
+ * @Date: 2019-08-19 10:41:08
+ * @Last Modified by: Xavier Yin
+ * @Last Modified time: 2019-08-19 14:15:15
+ *
+ * 为小程序提供分享消息落地页重定向能力。
+ * （先打开中转页面，一般是首页，然后重定向到落地页。如此页面标题栏可点击后退按钮返回到中转页）
+ */
+
+var qstringify = function qstringify(url, queries) {
+  var qs = [];
+  if (queries) {
+    for (var q in queries) {
+      qs.push(q + "=" + queries[q]);
+    }
+  }
+  return qs.length ? url + "?" + qs.join("&") : url;
+};
+
+var rePath = /(^[^?]*)/;
+var getPath = function getPath(url) {
+  var result = rePath.exec(url);
+  return result ? result[1] : "";
+};
+
+function isEqualPath(p1, p2) {
+  return p1.replace(/^\//g, "") === p2.replace(/^\//g, "");
+}
+
+/**
+ * 为 onShareAppMessage 打补丁
+ * @param {object} Page 小程序页面构造函数 Page
+ * @param {object} options 可选项
+ */
+function patchOnShareAppMessage(Page, options) {
+  if (Page.__patchOnShareAppMessage) return Page;
+
+  // router 表示中转页路径
+
+  var _ref = options || {},
+      router = _ref.router;
+
+  var constructor = function constructor(obj) {
+    obj = Object.assign({}, obj);
+
+    var _obj = obj,
+        onShareAppMessage = _obj.onShareAppMessage;
+
+
+    if ("function" === typeof onShareAppMessage) {
+      obj.onShareAppMessage = function (opts) {
+        var result = onShareAppMessage.call(this, opts);
+
+        var _ref2 = result || {},
+            path = _ref2.path,
+            _ref2$router = _ref2.router,
+            _router = _ref2$router === undefined ? router : _ref2$router;
+
+        if (_router) {
+          if (!path) path = qstringify(this.route, this.options);
+          var route = getPath(path);
+          // 如果分享页和中转页是同一个页面，则无需中转
+          if (isEqualPath(_router, route)) {
+            return result;
+          } else {
+            path = "" + _router + (~_router.indexOf("?") ? "&" : "?") + "redirectTo=" + encodeURIComponent(path);
+            return Object.assign({}, result, { path: path });
+          }
+        } else {
+          return result;
+        }
+      };
+    }
+
+    return Page(obj);
+  };
+
+  constructor.__patchOnShareAppMessage = true;
+  return constructor;
+}
+
+/**
+ * 解析中转页的 redirectTo 参数，完成页面重定向。
+ */
+function patchRouterPage(Page) {
+  if (Page.__patchRouterPage) return Page;
+
+  var constructor = function constructor(obj) {
+    obj = Object.assign({}, obj);
+    var _obj2 = obj,
+        onLoad = _obj2.onLoad;
+
+
+    obj.onLoad = function (options) {
+      var redirectTo = options.redirectTo;
+
+      if (redirectTo) {
+        var url = decodeURIComponent(redirectTo);
+        if (!url.startsWith("/")) url = "/" + url;
+        wx.navigateTo({
+          url: url,
+          fail: function fail() {
+            wx.switchTab({ url: getPath(url) });
+          }
+        });
+      }
+
+      if ("function" === typeof onLoad) {
+        onLoad.call(this, options);
+      }
+    };
+
+    return Page(obj);
+  };
+
+  constructor.__patchRouterPage = true;
+  return constructor;
+}
+
+exports.patchOnShareAppMessage = patchOnShareAppMessage;
+exports.patchRouterPage = patchRouterPage;
 
 /***/ })
 /******/ ]);

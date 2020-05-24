@@ -1,18 +1,48 @@
 // timefly/index.js
 
-const doubleDigits = number => (number < 10 ? "0" + number : number);
+const doubleDigits = (number) => (number < 10 ? "0" + number : number);
 
 Page({
   computed: {
+    // [require] 定义依赖属性 hello。
+    // [fn] 定义计算函数缺省。
+    // foo 的值为 'hello'。
+    foo: ["hello"],
+
+    // [require] 定义依赖属性 hello 和 world。
+    // [fn] 定义计算函数缺省。
+    // foo 的值为 ['hello', 'world']
+    bar: [["hello", "world"]],
+
+    // [require] 定义依赖属性 hello 和 world。
+    // [fn] 定义一个箭头函数作为计算函数。
+    // foo 的值为 'hello world!'
+    gee: [["hello", "world"], (x, y) => `${x} ${y}!`],
+
+    // 测试等同依赖计算属性
+    clockBangkokTime: "clock.Bangkok.time",
+
+    clockBeijing: ["clock.Beijing", (x) => JSON.stringify(x), true],
+
+    clockAsia: [["clockBeijing", "clockBangkokTime"]],
+
+    clockWorld: [
+      ["clockBeijing", "clock"],
+      (clockBeijing, clock) => {
+        let { Paris } = clock;
+        return [clockBeijing, Paris];
+      },
+    ],
+
     "clock.Bangkok": {
       require: ["clock.Tokyo.time"],
       fn({ "clock.Tokyo.time": clock }) {
         let ms = (clock || 0) - 3600 * 1000 * 2;
         return {
           city: "曼谷",
-          time: ms
+          time: ms,
         };
-      }
+      },
     },
 
     "clock.Beijing": {
@@ -20,9 +50,9 @@ Page({
       fn({ currentTime }) {
         return {
           city: "北京",
-          time: currentTime
+          time: currentTime,
         };
-      }
+      },
     },
 
     "clock.Paris": {
@@ -32,10 +62,10 @@ Page({
         let { time = 0 } = Bangkok || {};
         return {
           city: "巴黎",
-          time: time - 3600 * 1000 * 5
+          time: time - 3600 * 1000 * 5,
         };
       },
-      keen: true // 这里需要 keen 为 true，因为 clock 始终没有都是同一个 Object。
+      keen: true, // 这里需要 keen 为 true，因为 clock 始终没有都是同一个 Object。
     },
 
     "clock.Tokyo": {
@@ -44,9 +74,9 @@ Page({
         let ms = (clock || 0) + 3600 * 1000;
         return {
           city: "东京",
-          time: ms
+          time: ms,
         };
-      }
+      },
     },
 
     /** 按时区排序的时钟 */
@@ -60,7 +90,7 @@ Page({
         values.sort((x, y) => (x.time > y.time ? 1 : -1));
         return values;
       },
-      keen: true // 这里需要 keen 为 true，因为 clock 始终没有都是同一个 Object。
+      keen: true, // 这里需要 keen 为 true，因为 clock 始终没有都是同一个 Object。
     },
 
     // 日志数量
@@ -69,7 +99,7 @@ Page({
       fn({ logs }) {
         return logs.length;
       },
-      keen: true // 如果为 false，则 logNumber 一直为 0。
+      keen: true, // 如果为 false，则 logNumber 一直为 0。
     },
 
     normalDate: {
@@ -82,9 +112,9 @@ Page({
           date: doubleDigits(date.getDate()),
           hours: doubleDigits(date.getHours()),
           minutes: doubleDigits(date.getMinutes()),
-          seconds: doubleDigits(date.getSeconds())
+          seconds: doubleDigits(date.getSeconds()),
         };
-      }
+      },
     },
 
     pageTitle: {
@@ -95,15 +125,15 @@ Page({
         } else {
           return "正常时间";
         }
-      }
+      },
     },
 
     speedPiece: {
       require: ["speed"],
       fn({ speed }) {
         return ~~(1000 / speed);
-      }
-    }
+      },
+    },
   },
 
   /**
@@ -116,7 +146,10 @@ Page({
     showLogs: 5, // 显示多少条日志
     normalTime: Date.now(),
     speed: 1,
-    startTime: Date.now()
+    startTime: Date.now(),
+
+    hello: "hello",
+    world: "world",
   },
 
   watch: {
@@ -126,7 +159,7 @@ Page({
 
     speed(val) {
       this.writeLog(val);
-    }
+    },
   },
 
   /**
@@ -163,7 +196,7 @@ Page({
     let { currentTime } = this.data;
     this.$setData({
       currentTime: currentTime + 1000,
-      normalTime: Date.now()
+      normalTime: Date.now(),
     });
   },
 
@@ -188,7 +221,7 @@ Page({
     let { logNumber, normalDate: d } = this.data;
     let log = reset ? "恢复正常速度。" : `调整时间流逝速度为 ${speed}x。`;
     this.$setData({
-      [`logs[${logNumber}]`]: `${d.hours}:${d.minutes}:${d.seconds} ${log}`
+      [`logs[${logNumber}]`]: `${d.hours}:${d.minutes}:${d.seconds} ${log}`,
     });
-  }
+  },
 });
