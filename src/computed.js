@@ -2,17 +2,17 @@
  * @Author: Xavier Yin
  * @Date: 2019-05-09 14:08:48
  * @Last Modified by: Xavier Yin
- * @Last Modified time: 2019-08-31 11:41:23
+ * @Last Modified time: 2020-05-24 16:43:24
  */
 
 import parsePath, { compactPath, composePath, formatPath } from "./parsePath";
 import { getValueOfPath, setValueOfPath } from "./evalPath";
 import MiniprogrampatchError from "./error";
-import { isObject, isFunction, isEqual } from "./utils";
+import { isObject, isFunction, isEqual, isString, isArray } from "./utils";
 
 const MAX_ROUNDS_OF_CONSUMPTION = 100000;
 
-const observerAddToQueue = observer =>
+const observerAddToQueue = (observer) =>
   !observer._evaluating && observer.addToQueue();
 
 /**
@@ -55,10 +55,17 @@ class Observer {
     return this.getTempResult().key;
   }
 
+  /**
+   * 如果在 computed 配置中定义了无依赖的属性，这类属性视为只须求值一次便不再更新属性值。
+   */
   get once() {
     return !this.required.length;
   }
 
+  /**
+   * 如果在 computed 配置中定义了无依赖的计算属性，这些属性只会初始化时计算一次属性值。
+   * 首次求值结束后，该属性的计算函数被置为 null，属性值不再更新，此后该属性被视为只读(readonly)。
+   */
   get readonly() {
     return !this.fn;
   }
@@ -70,32 +77,32 @@ class Observer {
   }
 
   addChildObserver(observer) {
-    if (this.children.findIndex(item => item === observer) < 0) {
+    if (this.children.findIndex((item) => item === observer) < 0) {
       this.children.push(observer);
     }
   }
 
   addDirtyObserver(observer) {
-    if (this.keenObservers.findIndex(item => item === observer) < 0) {
+    if (this.keenObservers.findIndex((item) => item === observer) < 0) {
       this.keenObservers.push(observer);
     }
   }
 
   addObserver(observer) {
-    if (this.observers.findIndex(item => item === observer) < 0) {
+    if (this.observers.findIndex((item) => item === observer) < 0) {
       this.observers.push(observer);
     }
   }
 
   addToQueue() {
     let { __computingQueue: queue } = this.owner;
-    if (queue.findIndex(item => item === this) < 0) {
+    if (queue.findIndex((item) => item === this) < 0) {
       queue.push(this);
     }
   }
 
   addWatching(observer) {
-    if (this.watchings.findIndex(item => item === observer) < 0) {
+    if (this.watchings.findIndex((item) => item === observer) < 0) {
       this.watchings.push(observer);
     }
   }
@@ -117,7 +124,7 @@ class Observer {
     }
   }
 
-  /** 计算出属性值 */
+  /** (内部求值函数）计算出属性值 */
   compute() {
     if (this.readonly) {
       return this.getTempResult().value;
@@ -137,6 +144,7 @@ class Observer {
   }
 
   /**
+   * (公开求值函数)
    * 如果给定 value 参数，表示从外部直接对本属性赋值
    */
   eval(value) {
@@ -233,7 +241,7 @@ function createComputedObserver(owner, prop, observer) {
     _observer = obj[name] = new Observer(owner, name, req, fn, keen);
     if (!_observer.isRootObserver) {
       let rootObserver = createComputedObserver(owner, {
-        name: _observer.rootPath
+        name: _observer.rootPath,
       });
       rootObserver.addChildObserver(_observer);
     }
@@ -257,25 +265,62 @@ function isPropPath(props, name) {
   return props ? props.hasOwnProperty(parsePath(name)[0].key) : false;
 }
 
+/** 格式化定义的 computed 字段 */
 function formatComputedDefinition(computed, props) {
   let config = [];
   let k, v;
   for (k in computed) {
     v = computed[k];
     k = formatPath(k);
+    // 不可定义 props 的属性作为 computed 属性。
     if (isPropPath(props, k)) continue;
-    if (isFunction(v)) {
-      config.push({ name: k, require: [], fn: v });
+
+    // 使用数组方式定义依赖关系。
+    if (isArray(v)) {
+      // 数组可包含3个成员
+      let [req, fn, keen] = v;
+      if (isString(req)) {
+        req = [req];
+      }
+      if (!isArray(req)) {
+        req = [];
+      }
+      // 调用开发者对 req 的数据类型负责，期待为 Array<string>
+      req = req.map((n) => formatPath(n));
+      let isFnFunc = isFunction(fn);
+      let _fn = function (data) {
+        let val = req.map((n) => data[n]);
+        if (isFnFunc) {
+          return fn.apply(this, val);
+        } else {
+          // 如果没有定义计算函数，则单依赖计算属性直接返回依赖属性值，多依赖计算属性返回依赖属性值构成的数组。
+          // 如果定义的依赖字段个数为1，则直接返回该依赖字段的更新值。
+          // 如果定义的依赖字段个数为0，则直接返回 undefined。
+          return val.length > 1 ? val : val[0];
+        }
+      };
+      config.push({ name: k, require: req, fn: _fn, keen });
+
+      // 一个 computed 属性的完整定义格式应该是一个Object。
     } else if (isObject(v)) {
       let { require: req, fn, keen } = v;
       if (isFunction(fn)) {
         config.push({
           name: k,
-          require: (req || []).map(n => formatPath(n)),
+          require: (req || []).map((n) => formatPath(n)),
           fn,
-          keen: keen
+          keen: keen,
         });
       }
+
+      // 一个只读computed属性（无任何依赖）
+    } else if (isFunction(v)) {
+      config.push({ name: k, require: [], fn: v });
+
+      // 定义计算属性等于另一个路径的属性值。
+    } else if (isString(v)) {
+      let req = formatPath(v);
+      config.push({ name: k, require: [req], fn: (data) => data[req] });
     }
   }
   return config;
@@ -300,7 +345,7 @@ function evaluateComputedResult(owner, input) {
   let {
     __computedObservers: observers,
     __computingQueue: queue,
-    __tempComputedResult: result
+    __tempComputedResult: result,
   } = owner;
 
   for (let k in input) {
@@ -344,7 +389,7 @@ function calculateInitialComputedValues(owner) {
   let {
     __computedObservers: observers,
     __computingQueue: queue,
-    __tempComputedResult: result
+    __tempComputedResult: result,
   } = owner;
 
   Object.assign(result, owner.data);
@@ -370,5 +415,5 @@ export {
   calculateInitialComputedValues,
   constructComputedFeature,
   evaluateComputedResult,
-  isPropPath
+  isPropPath,
 };

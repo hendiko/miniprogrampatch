@@ -2,7 +2,7 @@
  * @Author: Xavier Yin
  * @Date: 2019-04-28 15:43:34
  * @Last Modified by: Xavier Yin
- * @Last Modified time: 2019-05-21 16:49:07
+ * @Last Modified time: 2020-05-24 15:50:20
  *
  * 解析小程序 data 以路径作为属性名
  */
@@ -32,53 +32,53 @@ function ParseError(type, pathstr) {
  * path 字符串中第一个 `]` 不能出现在第一个 `[` 之前。
  * 例如以下都是非法 path: `abc]`, `x.y].z`
  */
-const check1 = path => !/^[^\[]*\]/.test(path);
+const check1 = (path) => !/^[^\[]*\]/.test(path);
 
 /**
  * path 根节点不能是数组，即不能以 `[` 开头。(预转换后检查项)
  */
-const check2 = path => !path.startsWith("[");
+const check2 = (path) => !path.startsWith("[");
 
 /**
  * path 不能以未关闭的数组表达式加上对象表达式结尾，例如 `x.y[abc` 非法。
  */
-const check3 = path => !/(.+)\[[^\]]+$/g.test(path);
+const check3 = (path) => !/(.+)\[[^\]]+$/g.test(path);
 
 /**
  * path 中不能存在空数组表达式，即不能包含 `[]` 字符串
  */
-const check4 = path => !/\[\]/.test(path);
+const check4 = (path) => !/\[\]/.test(path);
 
 /**
  * path 不能为空字符串
  */
-const check5 = path => path !== "";
+const check5 = (path) => path !== "";
 
 /**
  * 连续句号字符串转换为一个句号字符
  */
-const transform1 = path => path.replace(/\.+/g, ".");
+const transform1 = (path) => path.replace(/\.+/g, ".");
 
 /**
  * 去除首尾的句号
  */
-const transform2 = path => /^\.*(.*?)\.*$/g.exec(path)[1];
+const transform2 = (path) => /^\.*(.*?)\.*$/g.exec(path)[1];
 
 /**
  * 去除未关闭的数组表达式结尾，即 `x.y[11.22`, `x.y[[[[[` 是合法的，但等同于 `x.y`。
  */
-const transform3 = path => path.replace(/\[[\[\.\d]*$/g, "");
+const transform3 = (path) => path.replace(/\[[\[\.\d]*$/g, "");
 
 /**
  * 连续空字符串转换为一个空字符串
  */
-const transform4 = path => path.replace(/\s+/g, " ");
+const transform4 = (path) => path.replace(/\s+/g, " ");
 
 /**
  * 查看目标字符串包含多少个 `]` 字符
  * @param {string} str 被检查字符串
  */
-const countRSB = str => (str.match(/\]/g) || []).length;
+const countRSB = (str) => (str.match(/\]/g) || []).length;
 
 /**
  * 对 path 进行预处理，包括检查 path 合法性和字符串转换
@@ -180,9 +180,9 @@ export default function parsePath(path) {
  * 将解析后的节点拼接成完成路径表达式
  * @param {array} sections 解析后的路径节点
  */
-export const composePath = sections => {
+export const composePath = (sections) => {
   return sections
-    .map(item => (item.type === 0 ? item.key : `[${item.key}]`))
+    .map((item) => (item.type === 0 ? item.key : `[${item.key}]`))
     .join(".");
 };
 
@@ -192,12 +192,16 @@ export const composePath = sections => {
  * `x.y.[0].[1].z` 转换为 `x.y[0][1]z`
  * @param {string} path 路径表达式
  */
-export const compactPath = path =>
+export const compactPath = (path) =>
   path.replace(/\.\[/g, "[").replace(/\]\./g, "]");
 
 /**
  * 格式化路径，转换为标准的简洁路径
  */
 export function formatPath(path) {
-  return compactPath(composePath(parsePath(path)));
+  if ("string" === typeof path) {
+    return compactPath(composePath(parsePath(path)));
+  } else {
+    throw new MiniprogrampatchError("The path of data is not a string.");
+  }
 }
